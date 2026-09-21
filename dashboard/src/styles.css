@@ -1,0 +1,510 @@
+/* ==========================================================================
+   Dashboard SpaceFarm : thème sombre à fort contraste, grandes polices
+   (lisible sur un écran projeté).
+   Les couleurs sont des variables : le mode crise n'a qu'à les remplacer.
+   ========================================================================== */
+
+:root {
+  --fond: #0b1220;
+  --carte: #131c30;
+  --bord: #2c3b5c;
+  --texte: #f8fafc;
+  --texte-doux: #b9c6de;
+
+  --accent: #34d399;      /* couleur d'accent : verte en mode normal */
+  --ok: #34d399;
+  --attention: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+}
+
+/* Mode crise : tout le thème passe à l'orange (attribut data-mode posé par App.jsx) */
+[data-mode='crise'] {
+  --fond: #1d1006;
+  --carte: #2a1a0c;
+  --bord: #6b431c;
+  --texte-doux: #ecd3b6;
+  --accent: #fb923c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 12px 28px 14px;
+  background: var(--fond);
+  color: var(--texte);
+  font-size: 20px;
+  border-top: 10px solid var(--accent);
+  transition: background 0.4s, border-color 0.4s;
+}
+
+h1 {
+  margin: 0;
+  font-size: 32px;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 26px;
+}
+
+p {
+  margin: 6px 0;
+}
+
+.texte-doux {
+  color: var(--texte-doux);
+}
+
+/* ----- En-tête ----- */
+.entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.entete-etat {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  border: 2px solid var(--bord);
+}
+
+.badge-mode {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.badge-mode-crise {
+  background: var(--accent);
+  color: #1d1006;
+  font-size: 26px;
+  padding: 6px 22px;
+}
+
+.badge-erreur {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #2a0a0a;
+}
+
+.badge-vitale {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge-non-vitale {
+  color: var(--texte-doux);
+}
+
+/* ----- Disposition ----- */
+.zones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Rangée du bas : réservoir | simulation | crise | alertes */
+.bas {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1.05fr 1.3fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* ----- Cartes ----- */
+.carte {
+  background: var(--carte);
+  border: 2px solid var(--bord);
+  border-radius: 14px;
+  padding: 14px 20px;
+  transition: background 0.4s, border-color 0.4s;
+}
+
+.carte-titre {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.carte-titre h2 {
+  margin: 0;
+}
+
+/* Zone sous son seuil de survie : la carte devient rouge */
+.carte-danger {
+  background: #4a1414;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger);
+}
+
+.alerte-danger {
+  color: #fecaca;
+  font-weight: 700;
+  margin: 10px 0 0;
+}
+
+.carte-danger .alerte-danger {
+  background: var(--danger);
+  color: #2a0a0a;
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+/* ----- Humidité : chiffre + barre + repères ----- */
+.humidite {
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 4px 0 6px;
+}
+
+.unite {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--texte-doux);
+}
+
+.barre {
+  position: relative;
+  height: 26px;
+  background: #0b1424;
+  border: 2px solid var(--bord);
+  border-radius: 8px;
+}
+
+.barre-remplissage {
+  height: 100%;
+  border-radius: 6px 0 0 6px;
+  transition: width 0.6s, background 0.4s;
+}
+
+.repere {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+}
+
+.repere-survie {
+  background: var(--danger);
+}
+
+.repere-arrosage {
+  background: var(--attention);
+}
+
+.legende-barre {
+  position: relative;
+  height: 28px;
+  margin-top: 6px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.legende-barre span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.legende-survie {
+  color: var(--danger);
+}
+
+.legende-arrosage {
+  color: var(--attention);
+}
+
+/* ----- Mesures et pompe ----- */
+/* Les 4 mesures sur une seule ligne sur grand écran (2x2 sur portable, voir plus haut) */
+.mesures {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 12px;
+  margin-top: 4px;
+}
+
+.mesure-nom {
+  display: block;
+  font-size: 17px;
+  color: var(--texte-doux);
+}
+
+.mesure-valeur {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.pompe {
+  margin-top: 8px;
+  padding: 4px 14px;
+  border-radius: 8px;
+  border: 2px solid var(--bord);
+  font-weight: 700;
+  color: var(--texte-doux);
+}
+
+.pompe-on {
+  background: var(--info);
+  border-color: var(--info);
+  color: #06162e;
+}
+
+/* ----- Réservoir ----- */
+.jauge-zone {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.jauge {
+  width: 150px;
+  height: 150px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.jauge-centre {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--carte);
+  display: grid;
+  place-items: center;
+}
+
+.jauge-pourcent {
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.jauge-litres {
+  font-size: 40px;
+  font-weight: 800;
+  margin: 0;
+}
+
+/* Recyclage de l'eau : vert = actif, rouge = coupé (crise) */
+.recyclage {
+  margin: 14px 0 0;
+  padding: 6px 14px;
+  border: 2px solid;
+  border-radius: 999px;
+  font-size: 21px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.recyclage-actif {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.recyclage-coupe {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #2a0a0a;
+}
+
+/* ----- Boutons ----- */
+.bouton {
+  width: 100%;
+  padding: 16px 20px;
+  font-size: 26px;
+  font-weight: 800;
+  border-radius: 12px;
+  border: 3px solid transparent;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.bouton:hover {
+  filter: brightness(1.15);
+}
+
+.bouton-crise {
+  background: transparent;
+  border-color: #fb923c;
+  color: #fb923c;
+}
+
+.bouton-crise-actif {
+  background: var(--accent);
+  color: #1d1006;
+}
+
+.bouton-fuite {
+  background: transparent;
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.bouton-fuite-actif {
+  background: var(--info);
+  color: #06162e;
+}
+
+/* Boutons de préparation de la démo : côte à côte */
+.boutons-ligne {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.bouton-reinit {
+  margin-bottom: 0;
+  background: transparent;
+  border-color: var(--texte-doux);
+  color: var(--texte-doux);
+  font-size: 19px;
+  padding: 12px 10px;
+  flex: 1;
+}
+
+/* "Préparer la démo de crise" : même style, bord orange pour le distinguer du bouton normal */
+.bouton-demo {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.demo-prete {
+  margin: 10px 0 0;
+  padding: 6px 12px;
+  border: 2px solid var(--attention);
+  border-radius: 10px;
+  color: var(--attention);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* ----- Crise ----- */
+.compteur {
+  font-size: 72px;
+  font-weight: 800;
+  color: var(--accent);
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.barre-budget {
+  margin-top: 14px;
+}
+
+.budget-legende {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 19px;
+  flex-wrap: wrap;
+}
+
+/* ----- Alertes ----- */
+.carte-alertes {
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+.liste-alertes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alerte {
+  border-left: 10px solid var(--info);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 18px;
+}
+
+.alerte-entete {
+  display: flex;
+  gap: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.alerte-heure {
+  margin-left: auto;
+  color: var(--texte-doux);
+  font-weight: 400;
+}
+
+.alerte-info {
+  border-left-color: var(--info);
+}
+.alerte-info .alerte-niveau {
+  color: var(--info);
+}
+
+.alerte-attention {
+  border-left-color: var(--attention);
+}
+.alerte-attention .alerte-niveau {
+  color: var(--attention);
+}
+
+.alerte-critique {
+  border-left-color: var(--danger);
+  background: rgba(248, 113, 113, 0.14);
+}
+.alerte-critique .alerte-niveau {
+  color: var(--danger);
+}
+
+/* ==========================================================================
+   Petits écrans. Ces règles sont à la FIN du fichier : sinon les règles de base
+   écrites plus bas les écraseraient.
+   ========================================================================== */
+
+/* Écran de portable (moins de 1600 px) : 2 colonnes, le défilement est acceptable */
+@media (max-width: 1600px) {
+  .bas {
+    grid-template-columns: 1fr 1fr;
+  }
+  .mesures {
+    grid-template-columns: 1fr 1fr;
+  }
+  /* Barres plus étroites : la légende "arrosage" passe sur une 2e ligne pour ne pas chevaucher "survie" */
+  .legende-barre {
+    height: 58px;
+  }
+  .legende-arrosage {
+    top: 28px;
+  }
+}
+
+/* Très petit écran : une seule colonne */
+@media (max-width: 1200px) {
+  .zones,
+  .bas {
+    grid-template-columns: 1fr;
+  }
+}

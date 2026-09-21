@@ -1,0 +1,20 @@
+# Environnements et dépendances (à réinstaller, voir README)
+.venv/
+node_modules/
+
+# Résultats de build
+dist/
+
+# Python
+__pycache__/
+*.pyc
+
+# Fichiers temporaires et journaux
+*.log
+*.tmp
+.run/
+
+# Éditeur / système
+.vscode/
+Thumbs.db
+.DS_Store

@@ -1,0 +1,38 @@
+{
+  "humidite_par_litre": 4.0,
+  "taux_recyclage": 0.9,
+  "reservoir_capacite_litres": 200,
+  "reservoir_litres": 200,
+  "zones": {
+    "zone1": {
+      "nom": "Laitue",
+      "vitale": true,
+      "priorite": 1,
+      "seuil_arrosage": 60,
+      "seuil_survie": 35,
+      "evaporation": 0.4,
+      "debit_pompe": 0.6,
+      "humidite_demo_crise": 59
+    },
+    "zone2": {
+      "nom": "Pomme de terre",
+      "vitale": true,
+      "priorite": 2,
+      "seuil_arrosage": 55,
+      "seuil_survie": 30,
+      "evaporation": 0.3,
+      "debit_pompe": 0.5,
+      "humidite_demo_crise": 47
+    },
+    "zone3": {
+      "nom": "Basilic",
+      "vitale": false,
+      "priorite": 3,
+      "seuil_arrosage": 50,
+      "seuil_survie": 25,
+      "evaporation": 0.5,
+      "debit_pompe": 0.3,
+      "humidite_demo_crise": 40
+    }
+  }
+}
