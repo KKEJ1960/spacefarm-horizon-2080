@@ -1,9 +1,9 @@
 import { heure } from '../formater.js'
 
-const NOMS_NIVEAUX = { info: 'INFO', attention: 'ATTENTION', critique: 'CRITIQUE' }
+const NOMS_NIVEAUX = { info: 'Information', attention: 'Attention', critique: 'Critique' }
 const MAX_AFFICHEES = 30
 
-// Liste des alertes : la plus récente en haut, couleur selon le niveau.
+// Liste des alertes : la plus récente en haut, couleur selon le niveau (gris, ambre, rouge).
 export default function ListeAlertes({ alertes }) {
   // L'API renvoie les alertes de la plus ancienne à la plus récente : on inverse
   const recentes = [...alertes].reverse().slice(0, MAX_AFFICHEES)
@@ -18,7 +18,7 @@ export default function ListeAlertes({ alertes }) {
             <div className="alerte-entete">
               <span className="alerte-niveau">{NOMS_NIVEAUX[alerte.niveau] ?? alerte.niveau}</span>
               <span>{alerte.zone}</span>
-              <span className="alerte-heure">{heure(alerte.date)}</span>
+              <span className="alerte-heure num">{heure(alerte.date)}</span>
             </div>
             <div>{alerte.message}</div>
           </li>

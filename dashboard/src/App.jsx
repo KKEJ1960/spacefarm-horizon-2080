@@ -15,6 +15,7 @@ import CarteZone from './components/CarteZone.jsx'
 import JaugeReservoir from './components/JaugeReservoir.jsx'
 import ListeAlertes from './components/ListeAlertes.jsx'
 import PanneauCrise from './components/PanneauCrise.jsx'
+import Num from './components/Num.jsx'
 import PanneauSimulation from './components/PanneauSimulation.jsx'
 
 export default function App() {
@@ -101,40 +102,48 @@ export default function App() {
           <p className="texte-doux">Ferme hydroponique autonome · simulation</p>
         </div>
         <div className="entete-etat">
-          {erreur && <span className="badge badge-erreur">API injoignable ({API_URL})</span>}
-          <span className={enCrise ? 'badge badge-mode badge-mode-crise' : 'badge badge-mode'}>
-            {enCrise ? 'MODE CRISE' : 'Mode normal'}
+          {erreur && <span className="erreur-api">API injoignable ({API_URL})</span>}
+          {/* Heure de la dernière réponse de l'API : montre que l'affichage est vivant */}
+          <span>
+            Données reçues à <Num>{new Date(recuLe).toLocaleTimeString('fr-FR')}</Num>
           </span>
         </div>
       </header>
 
-      <main>
-        <div className="zones">
-          {zones.map(([id, zone]) => (
-            <CarteZone key={id} zone={zone} />
-          ))}
-        </div>
+      {/* Bandeau de mode : sobre en mode normal, aplat de la couleur d'accent en crise */}
+      <div className={enCrise ? 'bandeau bandeau-crise' : 'bandeau'} role="status">
+        <span className="point" />
+        {enCrise
+          ? "Mode crise : recyclage coupé (eau contaminée), budget d'eau limité"
+          : 'Mode normal'}
+      </div>
 
-        {/* Rangée du bas : 4 panneaux côte à côte sur grand écran (tout tient sans défiler en 1920x1080) */}
-        <div className="bas">
-          <JaugeReservoir
-            litres={etat?.reservoir_litres ?? null}
-            capacite={etat?.reservoir_capacite_litres ?? 200}
-            consommationTotale={etat?.consommation_totale_litres ?? 0}
-            recyclageActif={etat ? etat.recyclage_actif : null}
-          />
-          <PanneauSimulation
-            fuite={fuite}
-            onBasculer={basculerFuite}
-            onReinitialiser={reinitialiser}
-            onPreparerDemo={preparerDemo}
-            demoPrete={etat?.demo_crise_prete === true}
-            demoSecondes={etat?.demo_crise_secondes_restantes ?? 0}
-          />
-          <PanneauCrise crise={crise} recuLe={recuLe} onBasculer={basculerCrise} />
-          <ListeAlertes alertes={alertes} />
-        </div>
-      </main>
+      {/* Les 3 zones en haut ; en bas réservoir, crise et alertes côte à côte ; puis la barre d'outils */}
+      <div className="zones">
+        {zones.map(([id, zone]) => (
+          <CarteZone key={id} zone={zone} />
+        ))}
+      </div>
+
+      <div className="bas">
+        <JaugeReservoir
+          litres={etat?.reservoir_litres ?? null}
+          capacite={etat?.reservoir_capacite_litres ?? 200}
+          consommationTotale={etat?.consommation_totale_litres ?? 0}
+          recyclageActif={etat ? etat.recyclage_actif : null}
+        />
+        <PanneauCrise crise={crise} recuLe={recuLe} onBasculer={basculerCrise} />
+        <ListeAlertes alertes={alertes} />
+      </div>
+
+      <PanneauSimulation
+        fuite={fuite}
+        onBasculer={basculerFuite}
+        onReinitialiser={reinitialiser}
+        onPreparerDemo={preparerDemo}
+        demoPrete={etat?.demo_crise_prete === true}
+        demoSecondes={etat?.demo_crise_secondes_restantes ?? 0}
+      />
     </div>
   )
 }

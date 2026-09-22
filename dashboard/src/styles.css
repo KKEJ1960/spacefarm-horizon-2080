@@ -1,30 +1,68 @@
 /* ==========================================================================
-   Dashboard SpaceFarm : thème sombre à fort contraste, grandes polices
-   (lisible sur un écran projeté).
-   Les couleurs sont des variables : le mode crise n'a qu'à les remplacer.
+   Dashboard SpaceFarm : poste de contrôle sobre, lisible sur un écran projeté.
+
+   Règles de style :
+   - fond uni, aucun dégradé, aucune ombre, aucune lueur ;
+   - une seule couleur d'accent (--accent), qui change en mode crise ;
+   - la couleur sert uniquement à dire un état : vert = normal, ambre = attention, rouge = danger ;
+   - texte en IBM Plex Sans, chiffres en IBM Plex Mono (chasse fixe, chiffres tabulaires).
    ========================================================================== */
 
-:root {
-  --fond: #0b1220;
-  --carte: #131c30;
-  --bord: #2c3b5c;
-  --texte: #f8fafc;
-  --texte-doux: #b9c6de;
-
-  --accent: #34d399;      /* couleur d'accent : verte en mode normal */
-  --ok: #34d399;
-  --attention: #fbbf24;
-  --danger: #f87171;
-  --info: #60a5fa;
+/* ----- Polices embarquées (dossier src/polices, licence SIL OFL) : aucun accès à Internet ----- */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 400;
+  font-display: block;
+  src: url('./polices/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 500;
+  font-display: block;
+  src: url('./polices/ibm-plex-sans-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 600;
+  font-display: block;
+  src: url('./polices/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-weight: 500;
+  font-display: block;
+  src: url('./polices/ibm-plex-mono-latin-500-normal.woff2') format('woff2');
 }
 
-/* Mode crise : tout le thème passe à l'orange (attribut data-mode posé par App.jsx) */
+:root {
+  --police-texte: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --police-chiffres: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  /* Surfaces : gris graphite uni */
+  --fond: #111418;
+  --carte: #1a1e24;
+  --bord: #343c47;
+  --piste: #2a313a;        /* fond des barres */
+
+  /* Textes : tous au contraste élevé (le plus discret fait plus de 8:1 sur --carte) */
+  --texte: #eef1f5;
+  --texte-doux: #b9c2cd;
+
+  /* Couleurs d'état (sémantiques) */
+  --ok: #4cc38a;           /* vert : normal */
+  --attention: #e8a93a;    /* ambre : attention */
+  --danger: #ff8a80;       /* rouge : danger */
+  --danger-fond: #2c1a1c;  /* fond d'une carte en danger */
+
+  /* Couleur d'accent : actions et repères. Bleu en mode normal, ambre en mode crise. */
+  --accent: #6cb0ff;
+  --sur-accent: #0c1a2b;   /* texte posé sur un aplat d'accent */
+}
+
+/* Mode crise (attribut data-mode posé par App.jsx) : seul l'accent change */
 [data-mode='crise'] {
-  --fond: #1d1006;
-  --carte: #2a1a0c;
-  --bord: #6b431c;
-  --texte-doux: #ecd3b6;
-  --accent: #fb923c;
+  --accent: #e8a93a;
+  --sur-accent: #241800;
 }
 
 * {
@@ -33,35 +71,62 @@
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  background: var(--fond);
+  font-family: var(--police-texte);
 }
 
 .page {
   min-height: 100vh;
-  padding: 12px 28px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 32px 16px;
   background: var(--fond);
   color: var(--texte);
-  font-size: 20px;
-  border-top: 10px solid var(--accent);
-  transition: background 0.4s, border-color 0.4s;
+  font-size: 19px;
+  line-height: 1.35;
+  border-top: 4px solid var(--fond);   /* liseré du haut : prend la couleur d'accent en crise */
+}
+
+[data-mode='crise'].page {
+  border-top-color: var(--accent);
 }
 
 h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: 30px;
+  font-weight: 600;
 }
 
 h2 {
-  margin: 0 0 8px;
-  font-size: 26px;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
 }
 
 p {
-  margin: 6px 0;
+  margin: 0;
 }
 
 .texte-doux {
   color: var(--texte-doux);
+}
+
+/* Chiffres : police à chasse fixe, chiffres tabulaires (les valeurs ne "sautent" pas quand elles changent) */
+.num {
+  font-family: var(--police-chiffres);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Virgule décimale resserrée : sinon la chasse fixe laisse un trou dans "63,8" */
+.virgule {
+  margin: 0 -0.14em;
+}
+
+.unite {
+  color: var(--texte-doux);
+  font-weight: 400;
 }
 
 /* ----- En-tête ----- */
@@ -69,399 +134,407 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  gap: 16px;
+}
+
+.entete .texte-doux {
+  font-size: 18px;
 }
 
 .entete-etat {
   display: flex;
-  gap: 12px;
   align-items: center;
-}
-
-.badge {
-  display: inline-block;
-  padding: 4px 14px;
-  border-radius: 999px;
-  font-size: 18px;
-  font-weight: 700;
-  border: 2px solid var(--bord);
-}
-
-.badge-mode {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.badge-mode-crise {
-  background: var(--accent);
-  color: #1d1006;
-  font-size: 26px;
-  padding: 6px 22px;
-}
-
-.badge-erreur {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #2a0a0a;
-}
-
-.badge-vitale {
-  color: var(--ok);
-  border-color: var(--ok);
-}
-
-.badge-non-vitale {
+  gap: 16px;
   color: var(--texte-doux);
+  font-size: 18px;
+}
+
+.erreur-api {
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: var(--danger);
+  color: #2a0a0a;
+  font-weight: 600;
+}
+
+/* Bandeau de mode : sobre en mode normal, plein en mode crise */
+.bandeau {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border: 1px solid var(--bord);
+  border-radius: 8px;
+  background: var(--carte);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.bandeau-crise {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--sur-accent);
+  font-weight: 600;
+}
+
+/* Pastille d'état : un simple disque de couleur, jamais animé */
+.point {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.point-eteint {
+  background: transparent;
+  border: 2px solid var(--texte-doux);
+}
+
+.point-attention {
+  background: var(--attention);
+}
+
+.bandeau-crise .point {
+  background: var(--sur-accent);
 }
 
 /* ----- Disposition ----- */
 .zones {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 12px;
 }
 
-/* Rangée du bas : réservoir | simulation | crise | alertes */
+/* Rangée du bas : réservoir | crise | alertes */
 .bas {
   display: grid;
-  grid-template-columns: 1.15fr 1fr 1.05fr 1.3fr;
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  gap: 12px;
+}
+
+/* Grand écran : la page occupe exactement la fenêtre, la rangée du bas prend la place restante
+   et la liste d'alertes défile à l'intérieur de sa carte (jamais la page) */
+@media (min-width: 1600px) and (min-height: 900px) {
+  .page {
+    height: 100vh;
+  }
+  /* La place restante est partagée entre les zones (un peu plus hautes) et la rangée du bas */
+  .zones {
+    flex: 1.05 1 0;
+    min-height: 0;
+  }
+  .bas {
+    flex: 1 1 0;
+    min-height: 0;
+  }
 }
 
 /* ----- Cartes ----- */
 .carte {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 20px 16px;
   background: var(--carte);
-  border: 2px solid var(--bord);
-  border-radius: 14px;
-  padding: 14px 20px;
-  transition: background 0.4s, border-color 0.4s;
+  border: 1px solid var(--bord);
+  border-radius: 8px;
 }
 
 .carte-titre {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+  gap: 12px;
 }
 
-.carte-titre h2 {
-  margin: 0;
+.etiquette {
+  color: var(--texte-doux);
+  font-size: 18px;
 }
 
-/* Zone sous son seuil de survie : la carte devient rouge */
+/* Zone sous son seuil de survie : fond et bord rouges (aplat, sans lueur) */
 .carte-danger {
-  background: #4a1414;
+  background: var(--danger-fond);
   border-color: var(--danger);
-  box-shadow: 0 0 0 3px var(--danger);
 }
 
-.alerte-danger {
-  color: #fecaca;
-  font-weight: 700;
-  margin: 10px 0 0;
+/* ----- Zone de culture ----- */
+.zone-etat {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0 0 14px;
 }
 
-.carte-danger .alerte-danger {
+.humidite {
+  font-size: 88px;
+  line-height: 1.3;      /* au moins la hauteur de la boîte de la police : rien ne mord sur le libellé */
+}
+
+.humidite .unite {
+  margin-left: 8px;
+  font-family: var(--police-texte);
+  font-size: 32px;
+}
+
+/* État de la zone : normal, attention, danger */
+.statut {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.statut-attention {
+  color: var(--attention);
+}
+
+.statut-danger {
+  padding: 4px 12px;
+  border-radius: 6px;
   background: var(--danger);
   color: #2a0a0a;
-  padding: 4px 12px;
-  border-radius: 8px;
+  font-weight: 600;
 }
 
-/* ----- Humidité : chiffre + barre + repères ----- */
-.humidite {
-  font-size: 56px;
-  font-weight: 800;
-  line-height: 1.1;
-  margin: 4px 0 6px;
-}
-
-.unite {
-  font-size: 20px;
-  font-weight: 400;
-  color: var(--texte-doux);
-}
-
+/* ----- Barres : fond plat, repères en trait fin ----- */
 .barre {
   position: relative;
-  height: 26px;
-  background: #0b1424;
-  border: 2px solid var(--bord);
-  border-radius: 8px;
+  height: 18px;
+  background: var(--piste);
+  border-radius: 3px;
 }
 
 .barre-remplissage {
   height: 100%;
-  border-radius: 6px 0 0 6px;
-  transition: width 0.6s, background 0.4s;
+  border-radius: 3px 0 0 3px;
+  transition: width 0.6s;
 }
 
 .repere {
   position: absolute;
   top: -6px;
   bottom: -6px;
-  width: 4px;
-  margin-left: -2px;
-  border-radius: 2px;
-}
-
-.repere-survie {
-  background: var(--danger);
-}
-
-.repere-arrosage {
-  background: var(--attention);
+  width: 3px;
+  margin-left: -1px;
 }
 
 .legende-barre {
   position: relative;
   height: 28px;
-  margin-top: 6px;
-  font-size: 17px;
-  font-weight: 600;
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 500;
 }
 
-.legende-barre span {
+.legende-barre > span {
   position: absolute;
   transform: translateX(-50%);
   white-space: nowrap;
 }
 
-.legende-survie {
-  color: var(--danger);
-}
-
-.legende-arrosage {
-  color: var(--attention);
-}
-
 /* ----- Mesures et pompe ----- */
-/* Les 4 mesures sur une seule ligne sur grand écran (2x2 sur portable, voir plus haut) */
 .mesures {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
   gap: 8px 12px;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--bord);
 }
 
 .mesure-nom {
   display: block;
-  font-size: 17px;
+  font-size: 18px;
   color: var(--texte-doux);
 }
 
 .mesure-valeur {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 27px;
+}
+
+.mesure-valeur .unite {
+  margin-left: 4px;
+  font-size: 18px;
 }
 
 .pompe {
-  margin-top: 8px;
-  padding: 4px 14px;
-  border-radius: 8px;
-  border: 2px solid var(--bord);
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  font-weight: 500;
+}
+
+.pompe-off {
   color: var(--texte-doux);
 }
 
-.pompe-on {
-  background: var(--info);
-  border-color: var(--info);
-  color: #06162e;
+/* ----- Réservoir ----- */
+.jauge-litres {
+  margin-top: 4px;
+  font-size: 76px;
+  line-height: 1.3;
 }
 
-/* ----- Réservoir ----- */
-.jauge-zone {
+.jauge-litres .unite {
+  margin-left: 8px;
+  font-family: var(--police-texte);
+  font-size: 30px;
+}
+
+.reservoir-detail {
+  margin: 8px 0 14px;
+}
+
+.recyclage {
   display: flex;
   align-items: center;
-  gap: 22px;
-}
-
-.jauge {
-  width: 150px;
-  height: 150px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-}
-
-.jauge-centre {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  background: var(--carte);
-  display: grid;
-  place-items: center;
-}
-
-.jauge-pourcent {
-  font-size: 34px;
-  font-weight: 800;
-}
-
-.jauge-litres {
-  font-size: 40px;
-  font-weight: 800;
-  margin: 0;
-}
-
-/* Recyclage de l'eau : vert = actif, rouge = coupé (crise) */
-.recyclage {
-  margin: 14px 0 0;
-  padding: 6px 14px;
-  border: 2px solid;
-  border-radius: 999px;
-  font-size: 21px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.recyclage-actif {
-  color: var(--ok);
-  border-color: var(--ok);
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--bord);
+  font-weight: 500;
 }
 
 .recyclage-coupe {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #2a0a0a;
+  color: var(--attention);
 }
 
 /* ----- Boutons ----- */
 .bouton {
-  width: 100%;
-  padding: 16px 20px;
-  font-size: 26px;
-  font-weight: 800;
-  border-radius: 12px;
-  border: 3px solid transparent;
+  padding: 9px 18px;
+  border: 1px solid #5a6674;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texte);
+  font-family: var(--police-texte);
+  font-size: 18px;
+  font-weight: 500;
   cursor: pointer;
-  margin-bottom: 10px;
 }
 
 .bouton:hover {
-  filter: brightness(1.15);
+  background: #262d36;
 }
 
-.bouton-crise {
-  background: transparent;
-  border-color: #fb923c;
-  color: #fb923c;
+.bouton:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.bouton-crise-actif {
-  background: var(--accent);
-  color: #1d1006;
-}
-
-.bouton-fuite {
-  background: transparent;
-  border-color: var(--info);
-  color: var(--info);
-}
-
-.bouton-fuite-actif {
-  background: var(--info);
-  color: #06162e;
-}
-
-/* Boutons de préparation de la démo : côte à côte */
-.boutons-ligne {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.bouton-reinit {
-  margin-bottom: 0;
-  background: transparent;
-  border-color: var(--texte-doux);
-  color: var(--texte-doux);
-  font-size: 19px;
-  padding: 12px 10px;
-  flex: 1;
-}
-
-/* "Préparer la démo de crise" : même style, bord orange pour le distinguer du bouton normal */
-.bouton-demo {
+/* Action principale : « Activer la crise » / « Arrêter la crise » (aplat de la couleur d'accent) */
+.bouton-principal {
+  width: 100%;
+  margin: 12px 0 8px;
+  padding: 16px 20px;
   border-color: var(--accent);
-  color: var(--accent);
+  background: var(--accent);
+  color: var(--sur-accent);
+  font-size: 26px;
+  font-weight: 600;
 }
 
-.demo-prete {
-  margin: 10px 0 0;
-  padding: 6px 12px;
-  border: 2px solid var(--attention);
-  border-radius: 10px;
+.bouton-principal:hover {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+/* Bouton d'outil "enclenché" (fuite en cours) */
+.bouton-actif {
+  border-color: var(--attention);
   color: var(--attention);
-  font-size: 18px;
-  font-weight: 700;
 }
 
 /* ----- Crise ----- */
+.carte-crise {
+  border-color: var(--accent);
+}
+
+.crise-etat {
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .compteur {
   font-size: 72px;
-  font-weight: 800;
-  color: var(--accent);
-  margin: 4px 0 0;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
 }
 
 .barre-budget {
-  margin-top: 14px;
+  margin-top: 4px;
+}
+
+.budget-titre {
+  display: flex;
+  justify-content: space-between;
+  margin: 14px 0 8px;
+  font-weight: 500;
 }
 
 .budget-legende {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 8px;
-  font-size: 19px;
+  gap: 8px 16px;
   flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+.budget-legende .num {
+  font-size: 20px;
+}
+
+.crise-note {
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+.crise-danger {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 /* ----- Alertes ----- */
-.carte-alertes {
-  max-height: 450px;
-  overflow-y: auto;
-}
-
 .liste-alertes {
+  flex: 1;
+  min-height: 0;
+  margin: 10px 0 0;
+  padding: 0 4px 0 0;
   list-style: none;
-  margin: 0;
-  padding: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .alerte {
-  border-left: 10px solid var(--info);
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 8px 14px;
+  padding: 7px 12px;
+  border-left: 4px solid var(--texte-doux);
+  border-radius: 0 6px 6px 0;
+  background: #20262d;
   font-size: 18px;
 }
 
 .alerte-entete {
   display: flex;
-  gap: 14px;
-  font-weight: 700;
-  margin-bottom: 2px;
+  gap: 12px;
+  font-weight: 600;
 }
 
 .alerte-heure {
   margin-left: auto;
   color: var(--texte-doux);
-  font-weight: 400;
-}
-
-.alerte-info {
-  border-left-color: var(--info);
-}
-.alerte-info .alerte-niveau {
-  color: var(--info);
+  font-size: 17px;
 }
 
 .alerte-attention {
@@ -473,31 +546,70 @@ p {
 
 .alerte-critique {
   border-left-color: var(--danger);
-  background: rgba(248, 113, 113, 0.14);
+  background: var(--danger-fond);
 }
 .alerte-critique .alerte-niveau {
   color: var(--danger);
 }
 
+/* ----- Barre secondaire : outils de simulation ----- */
+.outils {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 8px 16px;
+  border: 1px dashed var(--bord);
+  border-radius: 8px;
+  font-size: 18px;
+}
+
+.outils-titre {
+  margin-right: 8px;
+  color: var(--texte-doux);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.outils-etat {
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.outils-etat-attention {
+  color: var(--attention);
+}
+
 /* ==========================================================================
    Petits écrans. Ces règles sont à la FIN du fichier : sinon les règles de base
-   écrites plus bas les écraseraient.
+   écrites plus haut ou plus bas les écraseraient.
    ========================================================================== */
 
-/* Écran de portable (moins de 1600 px) : 2 colonnes, le défilement est acceptable */
+/* Écran de portable (moins de 1600 px) : le défilement de la page est acceptable, rien ne doit se chevaucher */
 @media (max-width: 1600px) {
-  .bas {
-    grid-template-columns: 1fr 1fr;
-  }
   .mesures {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, auto);
+    justify-content: start;
+    gap: 8px 40px;
   }
-  /* Barres plus étroites : la légende "arrosage" passe sur une 2e ligne pour ne pas chevaucher "survie" */
+  /* Barres plus étroites : la légende du 2e repère passe sur une 2e ligne pour ne pas chevaucher le 1er */
   .legende-barre {
-    height: 58px;
+    height: 54px;
   }
-  .legende-arrosage {
-    top: 28px;
+  .legende-barre > span:nth-child(2) {
+    top: 26px;
+  }
+  .liste-alertes {
+    max-height: 340px;
+  }
+  /* Colonnes plus étroites : le statut de la zone passe sous le grand chiffre au lieu de le serrer */
+  .zone-etat {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .humidite {
+    font-size: 76px;
   }
 }
 

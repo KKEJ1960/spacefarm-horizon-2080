@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { minutesSecondes, nombre } from '../formater.js'
+import Barre from './Barre.jsx'
+import Num from './Num.jsx'
 
 // Panneau du scénario de crise : bouton, compte à rebours, budget d'eau.
 // "recuLe" = heure de la dernière réponse de l'API : sert à faire défiler le compte
@@ -22,54 +24,77 @@ export default function PanneauCrise({ crise, recuLe, onBasculer }) {
   }
 
   const actif = crise.actif
-  const tempsRestant = actif ? crise.temps_restant_secondes - (maintenant - recuLe) / 1000 : 0
-  const total = crise.budget_total_litres
-  const pourcentConsomme = total > 0 ? Math.min(100, (crise.budget_consomme_litres / total) * 100) : 0
   const bilan = crise.bilan
+  const tempsRestant = actif ? crise.temps_restant_secondes - (maintenant - recuLe) / 1000 : 0
+
+  // La barre de budget est toujours visible. Pendant la crise : le budget en cours.
+  // Sinon : le dernier bilan s'il existe, ou une barre vide (le budget est fixé à l'activation).
+  const source = actif
+    ? { total: crise.budget_total_litres, consomme: crise.budget_consomme_litres, restant: crise.budget_restant_litres }
+    : bilan
+      ? {
+          total: bilan.budget_total_litres,
+          consomme: bilan.budget_consomme_litres,
+          restant: Math.max(0, bilan.budget_total_litres - bilan.budget_consomme_litres),
+        }
+      : null
+  const pourcentConsomme = source && source.total > 0 ? (source.consomme / source.total) * 100 : 0
+
+  // Couleur d'état du budget : vert dans les clous, ambre à partir de 80 %, rouge si dépassé
+  let couleurBudget = 'var(--ok)'
+  if (pourcentConsomme >= 100) couleurBudget = 'var(--danger)'
+  else if (pourcentConsomme >= 80) couleurBudget = 'var(--attention)'
+
+  const titreBudget = actif ? "Budget d'eau de la crise" : bilan ? "Budget d'eau du dernier bilan" : "Budget d'eau"
 
   return (
     <section className="carte carte-crise">
       <h2>Crise : contamination du recyclage</h2>
 
-      <button className={actif ? 'bouton bouton-crise-actif' : 'bouton bouton-crise'} onClick={onBasculer}>
+      <button className="bouton bouton-principal" onClick={onBasculer}>
         {actif ? 'Arrêter la crise' : 'Activer la crise'}
       </button>
 
-      {actif ? (
-        <>
-          <p className="compteur">{minutesSecondes(tempsRestant)}</p>
-          <p className="texte-doux">temps restant avant le retour au mode normal</p>
-        </>
-      ) : (
-        <p className="texte-doux">
-          Aucune crise en cours. En crise, le budget d'eau est limité à 40&nbsp;% de la consommation normale.
-        </p>
-      )}
+      {/* Compte à rebours (ou état "aucune crise") : la hauteur de ce bloc ne change pas */}
+      <div className="crise-etat">
+        {actif ? (
+          <>
+            <p className="compteur num">{minutesSecondes(tempsRestant)}</p>
+            <p className="texte-doux">temps restant avant le retour au mode normal</p>
+          </>
+        ) : (
+          <>
+            <p>Aucune crise en cours.</p>
+            <p className="texte-doux">
+              En crise, le budget d'eau est limité à 40&nbsp;% de la consommation normale.
+            </p>
+          </>
+        )}
+      </div>
 
-      {/* Barre du budget d'eau : partie consommée / partie restante */}
-      {total > 0 && (
-        <>
-          <div className="barre barre-budget">
-            <div className="barre-remplissage" style={{ width: `${pourcentConsomme}%`, background: 'var(--accent)' }} />
-          </div>
-          <div className="budget-legende">
-            <span>Consommé : <strong>{nombre(crise.budget_consomme_litres)} L</strong></span>
-            <span>Restant : <strong>{nombre(crise.budget_restant_litres)} L</strong></span>
-            <span>Budget : <strong>{nombre(total)} L</strong></span>
-          </div>
-        </>
+      {/* Barre du budget d'eau : toujours affichée */}
+      <div className="budget-titre">
+        <span>{titreBudget}</span>
+        {source && (
+          <span>
+            <Num>{nombre(pourcentConsomme, 0)}</Num> % utilisé
+          </span>
+        )}
+      </div>
+      <Barre pourcent={pourcentConsomme} couleur={couleurBudget} className="barre-budget" />
+      {source ? (
+        <div className="budget-legende">
+          <span>Consommé <Num>{nombre(source.consomme)}</Num> L</span>
+          <span>Restant <Num>{nombre(source.restant)}</Num> L</span>
+          <span>Budget <Num>{nombre(source.total)}</Num> L</span>
+        </div>
+      ) : (
+        <p className="budget-legende texte-doux">Le budget en litres est fixé à l'activation de la crise.</p>
       )}
 
       {actif && crise.zones_en_danger.length > 0 && (
-        <p className="alerte-danger">
+        <p className="crise-note crise-danger">
           Zones en danger : {crise.zones_en_danger.map((z) => z.nom + (z.vitale ? '' : ' (sacrifiée)')).join(', ')}
-        </p>
-      )}
-
-      {!actif && bilan && (
-        <p className="texte-doux">
-          Dernier bilan : {nombre(bilan.budget_consomme_litres)} L consommés sur {nombre(bilan.budget_total_litres)} L (
-          {nombre(bilan.budget_utilise_pourcent, 0)} %).
         </p>
       )}
     </section>

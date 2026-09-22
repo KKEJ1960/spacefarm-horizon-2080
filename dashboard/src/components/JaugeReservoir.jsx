@@ -1,7 +1,9 @@
 import { nombre } from '../formater.js'
+import Num from './Num.jsx'
+import Barre from './Barre.jsx'
 
-// Jauge circulaire du réservoir, en litres et en pourcentage.
-// Orange sous 30 %, rouge sous 10 % (mêmes seuils que les alertes de l'API).
+// Niveau du réservoir, en litres et en pourcentage.
+// Ambre sous 30 %, rouge sous 10 % (mêmes seuils que les alertes de l'API).
 export default function JaugeReservoir({ litres, capacite, consommationTotale, recyclageActif }) {
   const pourcent = litres === null ? 0 : (litres / capacite) * 100
 
@@ -11,27 +13,35 @@ export default function JaugeReservoir({ litres, capacite, consommationTotale, r
 
   return (
     <section className="carte">
-      <h2>Réservoir d'eau</h2>
-      <div className="jauge-zone">
-        {/* Cercle rempli à "pourcent" % grâce à un dégradé conique */}
-        <div
-          className="jauge"
-          style={{ background: `conic-gradient(${couleur} ${pourcent}%, var(--bord) 0)` }}
-        >
-          <div className="jauge-centre">
-            <span className="jauge-pourcent">{litres === null ? '—' : nombre(pourcent, 0)} %</span>
-          </div>
-        </div>
-        <div>
-          <p className="jauge-litres">{nombre(litres)} L</p>
-          <p className="texte-doux">sur {nombre(capacite, 0)} L</p>
-          <p className="texte-doux">Consommé depuis le début&nbsp;: {nombre(consommationTotale)}&nbsp;L</p>
-        </div>
+      <div className="carte-titre">
+        <h2>Réservoir d'eau</h2>
+        <span className="etiquette">
+          <Num>{litres === null ? '—' : nombre(pourcent, 0)}</Num> %
+        </span>
       </div>
 
-      {/* Recyclage de l'eau : vert quand il marche, rouge quand il est coupé (crise) */}
+      <p className="jauge-litres">
+        <Num>{nombre(litres)}</Num>
+        <span className="unite">L</span>
+      </p>
+      <p className="texte-doux reservoir-detail">
+        sur <Num>{nombre(capacite, 0)}</Num> L · consommé depuis le début&nbsp;:{' '}
+        <Num>{nombre(consommationTotale)}</Num>&nbsp;L
+      </p>
+
+      <Barre
+        pourcent={pourcent}
+        couleur={couleur}
+        reperes={[
+          { position: 10, couleur: 'var(--danger)', nom: '', valeur: 10 },
+          { position: 30, couleur: 'var(--attention)', nom: '', valeur: 30 },
+        ]}
+      />
+
+      {/* Recyclage de l'eau : vert quand il marche, ambre quand il est coupé (crise) */}
       {recyclageActif !== null && (
         <p className={recyclageActif ? 'recyclage recyclage-actif' : 'recyclage recyclage-coupe'}>
+          <span className={recyclageActif ? 'point' : 'point point-attention'} />
           {recyclageActif ? 'Recyclage actif' : 'Recyclage coupé : eau contaminée'}
         </p>
       )}

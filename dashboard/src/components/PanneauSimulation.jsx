@@ -1,32 +1,34 @@
-// Panneau de simulation : fuite d'eau, remise à zéro de la ferme, préparation de la démo de crise.
+import Num from './Num.jsx'
+
+// Barre secondaire "Outils de simulation" : fuite d'eau, remise à zéro de la ferme, préparation de la démo de crise.
 // L'API détecte la fuite toute seule et crée une alerte critique.
 export default function PanneauSimulation({ fuite, onBasculer, onReinitialiser, onPreparerDemo, demoPrete, demoSecondes }) {
   return (
-    <section className="carte">
-      <h2>Simulation</h2>
-      <button className={fuite ? 'bouton bouton-fuite-actif' : 'bouton bouton-fuite'} onClick={onBasculer}>
-        {fuite ? 'Arrêter la fuite (OFF)' : 'Simuler une fuite (ON)'}
+    <section className="outils" aria-label="Outils de simulation">
+      <h2 className="outils-titre">Outils de simulation</h2>
+
+      <button className={fuite ? 'bouton bouton-actif' : 'bouton'} onClick={onBasculer}>
+        {fuite ? 'Arrêter la fuite' : 'Simuler une fuite'}
       </button>
-      <p className="texte-doux">
-        {fuite ? 'Fuite en cours : le réservoir perd 1 L de plus par tour.' : 'Aucune fuite simulée.'}
-      </p>
+      {/* Remise à zéro normale : réservoir plein, humidités de départ, alertes vidées, plus de fuite ni de crise */}
+      <button className="bouton" onClick={onReinitialiser}>
+        Réinitialiser la ferme
+      </button>
+      {/* Remise à zéro, mais avec des humidités proches des seuils de survie : une ferme qui a "déjà souffert" */}
+      <button className="bouton" onClick={onPreparerDemo}>
+        Préparer la démo de crise
+      </button>
 
-      {/* Deux boutons côte à côte pour préparer la démo */}
-      <div className="boutons-ligne">
-        {/* Remise à zéro normale : réservoir plein, humidités de départ, alertes vidées, plus de fuite ni de crise */}
-        <button className="bouton bouton-reinit" onClick={onReinitialiser}>
-          Réinitialiser la ferme
-        </button>
-        {/* Remise à zéro, mais avec des humidités proches des seuils de survie : une ferme qui a "déjà souffert" */}
-        <button className="bouton bouton-reinit bouton-demo" onClick={onPreparerDemo}>
-          Préparer la démo de crise
-        </button>
-      </div>
-
+      {/* Ligne d'état à droite : la fuite ou la démo prête */}
+      {fuite && (
+        <span className="outils-etat outils-etat-attention">
+          Fuite en cours : le réservoir perd 1 L de plus par tour.
+        </span>
+      )}
       {demoPrete && (
-        <p className="demo-prete">
-          Démo prête : lancez la crise dans les {demoSecondes} s (l'arrosage normal est en pause).
-        </p>
+        <span className="outils-etat outils-etat-attention">
+          Démo prête : lancez la crise dans les <Num>{demoSecondes}</Num> s (l'arrosage normal est en pause).
+        </span>
       )}
     </section>
   )
