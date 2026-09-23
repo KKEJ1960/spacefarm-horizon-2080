@@ -9,7 +9,7 @@ Définies dans [spacefarm/zones.json](spacefarm/zones.json). `<zone>` vaut `zone
 
 | Zone | Culture | Vitale | Priorité |
 |---|---|---|---|
-| `zone1` | Laitue | oui | 1 |
+| `zone1` | Tomate | oui | 1 |
 | `zone2` | Pomme de terre | oui | 2 |
 | `zone3` | Basilic | non | 3 |
 
@@ -25,7 +25,7 @@ Réglages de chaque zone dans `zones.json` :
 | `evaporation` | humidité perdue à chaque tour (moitié moins si lumière OFF) | % par tour |
 | `debit_pompe` | eau prélevée dans le réservoir à chaque tour, pompe ON | L par tour |
 
-Le fichier contient aussi `reservoir_capacite_litres` (capacité du réservoir, sert à calculer les pourcentages), `reservoir_litres` (niveau de départ du simulateur) `humidite_par_litre` (% d'humidité gagnés par litre d'eau pompé, lu par le simulateur et par l'API pour le budget de crise) et `taux_recyclage` (part de l'eau pompée qui revient dans le réservoir à chaque tour : 0,9 = 90 %, lu par le simulateur et par l'API pour détecter les fuites). Chaque zone a aussi `humidite_demo_crise` : son humidité de départ après « Préparer la démo de crise » (59 % laitue, 47 % pomme de terre, 40 % basilic).
+Le fichier contient aussi `reservoir_capacite_litres` (capacité du réservoir, sert à calculer les pourcentages), `reservoir_litres` (niveau de départ du simulateur) `humidite_par_litre` (% d'humidité gagnés par litre d'eau pompé, lu par le simulateur et par l'API pour le budget de crise) et `taux_recyclage` (part de l'eau pompée qui revient dans le réservoir à chaque tour : 0,9 = 90 %, lu par le simulateur et par l'API pour détecter les fuites). Chaque zone a aussi `humidite_demo_crise` : son humidité de départ après « Préparer la démo de crise » (59 % tomate, 47 % pomme de terre, 40 % basilic).
 
 ## Mesures (publiées par le simulateur)
 
@@ -39,6 +39,48 @@ Format de tous les messages : `{"valeur": ..., "unite": "...", "date": "..."}` (
 | `spacefarm/<zone>/luminosite` | nombre (0 si lumière OFF) | `lux` | `{"valeur": 12277, "unite": "lux", "date": "..."}` |
 | `spacefarm/<zone>/pompe` | `"ON"` ou `"OFF"` | (vide) | `{"valeur": "ON", "unite": "", "date": "..."}` |
 | `spacefarm/reservoir/niveau` | nombre, réservoir commun (90 % de l'eau pompée y revient quand le recyclage est actif) | `L` | `{"valeur": 199.4, "unite": "L", "date": "..."}` |
+
+## Capteurs réels (spacefarm/pont_capteur.py)
+
+Deux vrais capteurs peuvent être branchés sur un ESP32, relié au PC par câble USB (port série, par
+exemple `COM3`) — utile quand le Wi-Fi de l'ESP32 ne fonctionne pas : une sonde d'humidité du sol,
+et un capteur de température/humidité de l'air. L'ESP32 écrit en boucle, en alternance, des lignes
+`HUM;<valeur_brute>;<pourcentage>` et `AIR;<temperature>;<humidite_air>` (calibration faite côté
+ESP32). [spacefarm/pont_capteur.py](spacefarm/pont_capteur.py) lit ces lignes et republie les
+mesures sur MQTT, sur des topics **séparés** de ceux du simulateur (pour ne pas s'écraser) :
+
+| Topic | Valeur | Unité | Exemple |
+|---|---|---|---|
+| `spacefarm/<zone>/humidite_reelle` | nombre, avec en plus `"source": "capteur-reel"` et `"brut"` (valeur brute du capteur) | `%` | `{"valeur": 42.5, "unite": "%", "date": "...", "source": "capteur-reel", "brut": 380}` |
+| `spacefarm/<zone>/temperature_reelle` | nombre, avec en plus `"source": "capteur-reel"` (pas de `"brut"` : déjà calibrée par l'ESP32) | `°C` | `{"valeur": 25.8, "unite": "°C", "date": "...", "source": "capteur-reel"}` |
+
+L'humidité de l'air (deuxième valeur des lignes `AIR`) est lue par le pont, mais n'est pour
+l'instant **ni publiée ni utilisée** : aucune zone de `zones.json` ne modélise cette mesure.
+
+Par défaut, la zone concernée est `zone1` (constante `ZONE_CIBLE` dans `pont_capteur.py`, à faire
+correspondre à `ZONE_CAPTEUR_REEL` côté API).
+
+**Ce que fait l'API :** dès qu'un message arrive sur `spacefarm/<zone>/humidite_reelle` ou
+`.../temperature_reelle`, la mesure correspondante de la zone bascule sur cette valeur ; le reste
+(pH, luminosité, pompe) reste simulé. Toutes les règles existantes (arrosage, priorité de l'eau,
+crise, détection de fuite) continuent de s'appliquer normalement sur l'humidité, avec la valeur
+réelle (la température, elle, n'influence aucune règle : elle est seulement affichée). Sans nouveau
+message depuis **15 s** (`DELAI_CAPTEUR_REEL`), la mesure repasse automatiquement en simulée, avec
+une alerte info — **indépendamment pour l'humidité et la température** : si un seul des deux
+capteurs se tait, l'autre continue de fonctionner normalement. `POST /reinitialiser` repasse aussi
+les deux mesures en simulé tout de suite (si les capteurs sont toujours branchés, leur prochain
+message les rebascule sur le réel).
+
+`GET /etat` expose, pour chaque zone, `source_humidite` et `source_temperature` (`"simulee"` ou
+`"capteur-reel"`, indépendants l'un de l'autre) et `humidite_brute` (valeur brute du capteur
+d'humidité, `null` si simulée) : c'est ce que le dashboard utilise pour afficher le badge
+« Capteur réel » / « Simulé » sur l'humidité, et un petit repère vert sur la température.
+
+Lancer le pont seul (depuis `spacefarm/`) : `python pont_capteur.py`. Variables d'environnement :
+`PORT_SERIE` (`COM3` par défaut), `VITESSE_SERIE` (`115200`), `ZONE_CIBLE` (`zone1`). Démarré
+automatiquement par `start.ps1` dans sa propre fenêtre (sauf avec `-SansCapteur`), ou seul avec
+`.\pont-start.ps1` / arrêté seul avec `.\pont-stop.ps1` (utile pour libérer le port série et
+téléverser un nouveau programme depuis l'IDE Arduino, voir DEMO.md).
 
 ## Commandes (écoutées par le simulateur)
 
@@ -85,7 +127,7 @@ Lancer : `python -m uvicorn api:app --port 8000` depuis `spacefarm/`. En PowerSh
 
 | Route | Rôle |
 |---|---|
-| `GET /etat` | dernier état de chaque zone et du réservoir, avec `consommation_litres` par zone, `consommation_totale_litres`, `fuite_simulee`, `recyclage_actif`, `demo_crise_prete` et `demo_crise_secondes_restantes` |
+| `GET /etat` | dernier état de chaque zone et du réservoir, avec `consommation_litres`, `source_humidite`, `humidite_brute` et `source_temperature` par zone, `consommation_totale_litres`, `fuite_simulee`, `recyclage_actif`, `demo_crise_prete` et `demo_crise_secondes_restantes` |
 | `GET /alertes` | liste des alertes (200 dernières, de la plus ancienne à la plus récente) |
 | `POST /simulation/fuite?etat=ON` ou `OFF` | déclenche ou arrête la fuite simulée (publie sur `spacefarm/simulation/fuite`) |
 | `GET /crise` | `actif`, `temps_restant_secondes`, `budget_total_litres`, `budget_consomme_litres`, `budget_restant_litres`, `zones_en_danger` (humidité sous `seuil_survie`), et `bilan` une fois la crise finie |
@@ -93,11 +135,11 @@ Lancer : `python -m uvicorn api:app --port 8000` depuis `spacefarm/`. En PowerSh
 | `POST /crise/desactiver` | termine la crise avant l'heure (bilan « manuelle ») |
 | `POST /reinitialiser` | remet la ferme à zéro pour préparer la démo : réservoir plein, humidités de départ, compteurs de consommation à zéro, alertes vidées, plus de fuite ni de crise, recyclage actif, nouveau cycle jour/nuit. Le réservoir et les humidités sont remis à zéro par le simulateur, dans les 2 secondes. |
 
-| `POST /preparer-demo-crise` | comme `POST /reinitialiser`, mais les humidités repartent de `humidite_demo_crise` (laitue 59 %, pomme de terre 47 %, basilic 40 %) : une ferme qui a « déjà souffert ». L'arrosage automatique **normal** est suspendu jusqu'à `POST /crise/activer`, 45 s au maximum (`demo_crise_prete` vaut `true` pendant ce temps) |
+| `POST /preparer-demo-crise` | comme `POST /reinitialiser`, mais les humidités repartent de `humidite_demo_crise` (tomate 59 %, pomme de terre 47 %, basilic 40 %) : une ferme qui a « déjà souffert ». L'arrosage automatique **normal** est suspendu jusqu'à `POST /crise/activer`, 45 s au maximum (`demo_crise_prete` vaut `true` pendant ce temps) |
 
 ### Préréglage « démo de crise »
 
-Sur 3 minutes de crise depuis un fonctionnement normal, les zones vitales n'ont pas toujours besoin d'eau : la laitue perd 24 points et la pomme de terre 18, alors qu'on ne les arrose que sous 40 % et 35 %. Le préréglage part donc d'humidités plus basses. Les valeurs (59 / 47 / 40) sont le meilleur compromis calculé : plus bas, la crise consomme 97 à 99 % du budget ; plus haut, le rationnement devient invisible. L'arrosage normal est suspendu pendant l'attente entre « Préparer » et « Activer la crise », sinon il remonterait aussitôt les zones. Au-delà de 45 s d'attente, il reprend tout seul.
+Sur 3 minutes de crise depuis un fonctionnement normal, les zones vitales n'ont pas toujours besoin d'eau : la tomate perd 24 points et la pomme de terre 18, alors qu'on ne les arrose que sous 40 % et 35 %. Le préréglage part donc d'humidités plus basses. Les valeurs (59 / 47 / 40) sont le meilleur compromis calculé : plus bas, la crise consomme 97 à 99 % du budget ; plus haut, le rationnement devient invisible. L'arrosage normal est suspendu pendant l'attente entre « Préparer » et « Activer la crise », sinon il remonterait aussitôt les zones. Au-delà de 45 s d'attente, il reprend tout seul.
 
 ### Mode crise
 

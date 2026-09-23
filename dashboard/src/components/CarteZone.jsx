@@ -9,6 +9,10 @@ export default function CarteZone({ zone }) {
   const humidite = zone.humidite
   const enDanger = humidite !== null && humidite < zone.seuil_survie
   const souSeuilArrosage = humidite !== null && humidite < zone.seuil_arrosage
+  // Source de l'humidité : "capteur-reel" si un vrai capteur (pont_capteur.py) est branché sur cette
+  // zone, "simulee" sinon (valeur par défaut si l'API ne renvoie pas encore le champ).
+  const capteurReel = zone.source_humidite === 'capteur-reel'
+  const capteurReelTemperature = zone.source_temperature === 'capteur-reel'
 
   // Couleurs d'état : rouge sous la survie, ambre sous le seuil d'arrosage, vert sinon
   const couleur = enDanger ? 'var(--danger)' : souSeuilArrosage ? 'var(--attention)' : 'var(--ok)'
@@ -48,6 +52,17 @@ export default function CarteZone({ zone }) {
             <Num>{nombre(humidite)}</Num>
             <span className="unite">%</span>
           </p>
+          {/* Source de la mesure : toujours affichée (la carte garde la même hauteur dans les deux cas) */}
+          <p className="source-humidite">
+            <span className={capteurReel ? 'badge-source badge-source-reel' : 'badge-source badge-source-simule'}>
+              {capteurReel ? 'Capteur réel' : 'Simulé'}
+            </span>
+            {capteurReel && typeof zone.humidite_brute === 'number' && (
+              <span className="valeur-brute">
+                brut <Num>{zone.humidite_brute}</Num>
+              </span>
+            )}
+          </p>
         </div>
         {statut}
       </div>
@@ -65,7 +80,11 @@ export default function CarteZone({ zone }) {
       {/* Autres mesures */}
       <div className="mesures">
         <div>
-          <span className="mesure-nom">Température</span>
+          <span className="mesure-nom">
+            Température
+            {/* Petit repère (pas un badge complet, pas de place dans cette grille) : capteur réel branché */}
+            {capteurReelTemperature && <span className="point-mesure-reelle" title="Capteur réel" />}
+          </span>
           <span className="mesure-valeur">
             <Num>{nombre(zone.temperature)}</Num>
             <span className="unite">°C</span>

@@ -23,7 +23,7 @@ Write-Host "=== SpaceFarm : arrêt ===" -ForegroundColor Cyan
 # 1. Les fenêtres lancées par start.ps1
 if (Test-Path $fichierPids) {
     $notes = Get-Content $fichierPids -Raw | ConvertFrom-Json
-    foreach ($nom in "dashboard", "api", "simulateur") {
+    foreach ($nom in "dashboard", "api", "simulateur", "pont") {
         $id = $notes.$nom
         if ($id -and (Get-Process -Id $id -ErrorAction SilentlyContinue)) {
             Stop-Arbre $id
@@ -38,7 +38,7 @@ if (Test-Path $fichierPids) {
 $restes = @(Get-CimInstance Win32_Process | Where-Object {
     $_.CommandLine -and
     $_.CommandLine.IndexOf($racine, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
-    ($_.CommandLine -like "*uvicorn*" -or $_.CommandLine -like "*simulateur.py*" -or $_.CommandLine -like "*vite*")
+    ($_.CommandLine -like "*uvicorn*" -or $_.CommandLine -like "*simulateur.py*" -or $_.CommandLine -like "*pont_capteur.py*" -or $_.CommandLine -like "*vite*")
 })
 $idsRestes = $restes | ForEach-Object { $_.ProcessId }
 foreach ($processus in ($restes | Where-Object { $idsRestes -notcontains $_.ParentProcessId })) {

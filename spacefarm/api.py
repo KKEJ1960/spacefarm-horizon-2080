@@ -10,6 +10,11 @@ Ce service est séparé du simulateur. Il fait cinq choses :
        - lumière  : cycle jour/nuit accéléré (2 min de jour, 1 min de nuit)
   3. il surveille l'eau : litres consommés par zone, alertes (survie, réservoir bas, fuite),
      publiées sur "spacefarm/alertes" ;
+  3bis. CAPTEURS RÉELS (pont_capteur.py) : la zone ZONE_CAPTEUR_REEL (zone1 par défaut) peut recevoir
+     son humidité et sa température de vrais capteurs, sur "spacefarm/<zone>/humidite_reelle" et
+     "spacefarm/<zone>/temperature_reelle", au lieu du simulateur. Le reste (pH, luminosité, pompe)
+     reste simulé. Sans mesure réelle depuis DELAI_CAPTEUR_REEL secondes, la mesure concernée
+     repasse automatiquement en simulé (indépendamment pour l'humidité et la température) ;
   4. MODE CRISE (contamination du recyclage) : le recyclage de l'eau est COUPÉ, budget d'eau
      limité, zones non vitales sacrifiées, zones vitales maintenues juste au-dessus du seuil de
      survie, éclairage réduit. La crise se termine toute seule au bout de DUREE_CRISE_SECONDES
@@ -54,6 +59,10 @@ SEUIL_RESERVOIR_BAS = 30        # % de la capacité : sous ce seuil -> alerte "a
 SEUIL_RESERVOIR_CRITIQUE = 10   # % de la capacité : sous ce seuil -> alerte "critique"
 TOLERANCE_FUITE = 0.5           # litres : baisse du réservoir tolérée au-delà de ce que les pompes expliquent
 MAX_ALERTES = 200               # on garde les 200 dernières alertes en mémoire
+
+# --- Capteurs réels (pont_capteur.py) ---
+ZONE_CAPTEUR_REEL = os.getenv("ZONE_CAPTEUR_REEL", "zone1")   # zone dont l'humidité et la température peuvent venir de vrais capteurs
+DELAI_CAPTEUR_REEL = 15         # secondes sans message d'un capteur réel avant de repasser sa mesure en simulée
 
 # --- Règles en mode crise ---
 # 48 h simulées = 8 minutes réelles (480 s). Modifiable : DUREE_CRISE_SECONDES=180 par exemple.
@@ -107,6 +116,10 @@ for zone_id, params in CONFIG["zones"].items():
         "lumiere": None,    # dernière commande de lumière envoyée
         # eau consommée par la pompe de cette zone depuis le démarrage de l'API
         "consommation_litres": 0.0,
+        # capteurs réels (pont_capteur.py) : "simulee" ou "capteur-reel", indépendamment pour chaque mesure
+        "source_humidite": "simulee",
+        "humidite_brute": None,   # valeur brute du capteur d'humidité (utile pour le débogage), None si simulée
+        "source_temperature": "simulee",
     }
 
 # Liste des alertes, de la plus ancienne à la plus récente.
@@ -152,6 +165,9 @@ horloge = {"debut_cycle": time.time(), "forcer_envoi": False}
 #                         (voir changer_recyclage)
 # "demo_jusqua"          : heure jusqu'à laquelle l'arrosage normal est suspendu (préréglage démo de crise)
 suivi = {"ignorer_fuite_jusqua": 0.0, "demo_jusqua": 0.0}
+
+# Heure (time.time()) du dernier message reçu de chaque capteur réel : sert à détecter son silence
+capteur_reel = {"derniere_reception_humidite": 0.0, "derniere_reception_temperature": 0.0}
 
 
 def demo_en_attente():
@@ -570,6 +586,89 @@ def appliquer_regle_arrosage(zone_id):
 
 
 # ---------------------------------------------------------------------------
+# Capteurs réels (pont_capteur.py)
+# ---------------------------------------------------------------------------
+def traiter_mesure_humidite_reelle(zone_id, payload):
+    """
+    Message reçu sur spacefarm/<zone>/humidite_reelle (pont_capteur.py branché sur un vrai capteur) :
+    remplace l'humidité SIMULÉE de la zone par cette mesure. Les autres mesures (pH, luminosité) et
+    la pompe restent simulées ; la température a sa propre bascule, voir traiter_mesure_temperature_reelle.
+    """
+    if zone_id != ZONE_CAPTEUR_REEL or zone_id not in etat["zones"]:
+        return   # capteur non prévu pour cette zone (ou zone inconnue) : on ignore par sécurité
+    try:
+        message = json.loads(payload)
+        valeur = float(message["valeur"])
+    except (ValueError, KeyError, TypeError):
+        return   # message mal formé : on l'ignore plutôt que de planter
+
+    zone = etat["zones"][zone_id]
+    if zone["source_humidite"] != "capteur-reel":
+        zone["source_humidite"] = "capteur-reel"
+        creer_alerte("info", zone_id, f"Capteur d'humidité réel connecté : {zone['nom']} suit désormais la mesure réelle (plus la simulation).")
+    zone["humidite"] = valeur
+    zone["humidite_brute"] = message.get("brut")
+    capteur_reel["derniere_reception_humidite"] = time.time()
+
+    # En crise, on retient l'humidité la plus basse de la zone (pour le bilan), comme pour la simulation
+    if crise["actif"]:
+        minimum = crise["humidite_min"].get(zone_id)
+        crise["humidite_min"][zone_id] = valeur if minimum is None else min(minimum, valeur)
+
+    # On applique les règles tout de suite (et pas seulement au prochain "pompe" du simulateur) :
+    # avec un capteur réel, on veut réagir dès que l'humidité change (par exemple pour la démo).
+    evaluer_survie(zone_id)
+    appliquer_regle_arrosage(zone_id)
+
+
+def traiter_mesure_temperature_reelle(zone_id, payload):
+    """
+    Message reçu sur spacefarm/<zone>/temperature_reelle : remplace la température SIMULÉE de la
+    zone. La température n'influence aujourd'hui aucune règle (ni arrosage, ni crise) : elle est
+    seulement affichée, mise à jour, avec une alerte au premier message.
+    """
+    if zone_id != ZONE_CAPTEUR_REEL or zone_id not in etat["zones"]:
+        return
+    try:
+        message = json.loads(payload)
+        valeur = float(message["valeur"])
+    except (ValueError, KeyError, TypeError):
+        return
+
+    zone = etat["zones"][zone_id]
+    if zone["source_temperature"] != "capteur-reel":
+        zone["source_temperature"] = "capteur-reel"
+        creer_alerte("info", zone_id, f"Capteur de température réel connecté : {zone['nom']} suit désormais la mesure réelle (plus la simulation).")
+    zone["temperature"] = valeur
+    capteur_reel["derniere_reception_temperature"] = time.time()
+
+
+def verifier_capteur_reel():
+    """Si plus aucune mesure réelle depuis DELAI_CAPTEUR_REEL secondes, la mesure concernée repasse
+    en simulée. Humidité et température sont vérifiées indépendamment : un seul fil qui lâche
+    (câblage, capteur défectueux) ne fait pas repasser l'autre mesure en simulé."""
+    zone = etat["zones"].get(ZONE_CAPTEUR_REEL)
+    if zone is None:
+        return
+    maintenant = time.time()
+
+    if zone["source_humidite"] == "capteur-reel" and maintenant - capteur_reel["derniere_reception_humidite"] > DELAI_CAPTEUR_REEL:
+        zone["source_humidite"] = "simulee"
+        zone["humidite_brute"] = None
+        creer_alerte(
+            "info", ZONE_CAPTEUR_REEL,
+            f"Capteur d'humidité réel silencieux depuis {DELAI_CAPTEUR_REEL:.0f} s : {zone['nom']} repasse en humidité simulée.",
+        )
+
+    if zone["source_temperature"] == "capteur-reel" and maintenant - capteur_reel["derniere_reception_temperature"] > DELAI_CAPTEUR_REEL:
+        zone["source_temperature"] = "simulee"
+        creer_alerte(
+            "info", ZONE_CAPTEUR_REEL,
+            f"Capteur de température réel silencieux depuis {DELAI_CAPTEUR_REEL:.0f} s : {zone['nom']} repasse en température simulée.",
+        )
+
+
+# ---------------------------------------------------------------------------
 # MQTT : réception des mesures
 # ---------------------------------------------------------------------------
 def on_connect(client, userdata, flags, reason_code, properties):
@@ -607,6 +706,15 @@ def on_message(client, userdata, msg):
         return   # on ignore les commandes (4 morceaux), nos alertes et le mode (2 morceaux)
 
     _, cible, mesure = morceaux
+
+    # Mesures des capteurs réels (pont_capteur.py), format différent (avec "source") : traitées à part
+    if mesure == "humidite_reelle":
+        traiter_mesure_humidite_reelle(cible, msg.payload)
+        return
+    if mesure == "temperature_reelle":
+        traiter_mesure_temperature_reelle(cible, msg.payload)
+        return
+
     try:
         valeur = json.loads(msg.payload)["valeur"]
     except (ValueError, KeyError, TypeError):
@@ -618,6 +726,12 @@ def on_message(client, userdata, msg):
         evaluer_reservoir(ancien_niveau, valeur)
 
     elif cible in etat["zones"] and mesure in ("humidite", "temperature", "ph", "luminosite", "pompe"):
+        # Capteur(s) réel(s) actif(s) sur cette zone : on ignore la mesure SIMULÉE correspondante
+        # (les autres mesures et la pompe restent simulées, indépendamment de l'humidité et de la température).
+        if mesure == "humidite" and cible == ZONE_CAPTEUR_REEL and etat["zones"][cible]["source_humidite"] == "capteur-reel":
+            return
+        if mesure == "temperature" and cible == ZONE_CAPTEUR_REEL and etat["zones"][cible]["source_temperature"] == "capteur-reel":
+            return
         etat["zones"][cible][mesure] = valeur
 
         # En crise, on retient l'humidité la plus basse de chaque zone (pour le bilan)
@@ -657,6 +771,9 @@ def boucle_horloge():
             # Fin automatique de la crise : retour au mode normal
             if crise["actif"] and time.time() - crise["debut"] >= crise["duree_secondes"]:
                 terminer_crise("automatique")
+
+            # Capteur réel silencieux depuis trop longtemps : retour à l'humidité simulée
+            verifier_capteur_reel()
 
             phase = phase_lumiere()
 
@@ -705,6 +822,13 @@ def reinitialiser_ferme(demo=False):
     for zone_id, zone in etat["zones"].items():
         zone["consommation_litres"] = 0.0
         derniere_commande_pompe[zone_id] = None
+        # Capteurs réels : on repart en simulé. S'ils sont toujours branchés, leur prochain message
+        # (moins de 2 s) rebascule la zone tout seul ; sinon la démo repart bien sur du simulé.
+        zone["source_humidite"] = "simulee"
+        zone["humidite_brute"] = None
+        zone["source_temperature"] = "simulee"
+    capteur_reel["derniere_reception_humidite"] = 0.0
+    capteur_reel["derniere_reception_temperature"] = 0.0
     alertes.clear()
     statuts.clear()
     zones_en_attente.clear()

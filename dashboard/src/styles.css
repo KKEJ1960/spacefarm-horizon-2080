@@ -281,6 +281,37 @@ p {
   font-size: 32px;
 }
 
+/* Source de la mesure d'humidité : "Capteur réel" (vert) ou "Simulé" (gris), plus la valeur brute */
+.source-humidite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.badge-source {
+  padding: 1px 9px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.badge-source-reel {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge-source-simule {
+  color: var(--texte-doux);
+  border-color: var(--bord);
+}
+
+.valeur-brute {
+  color: var(--texte-doux);
+}
+
 /* État de la zone : normal, attention, danger */
 .statut {
   display: inline-flex;
@@ -354,6 +385,16 @@ p {
   display: block;
   font-size: 18px;
   color: var(--texte-doux);
+}
+
+/* Repère minuscule à côté du nom d'une mesure : capteur réel branché (pont_capteur.py) */
+.point-mesure-reelle {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--ok);
 }
 
 .mesure-valeur {

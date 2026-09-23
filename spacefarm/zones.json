@@ -5,7 +5,7 @@
   "reservoir_litres": 200,
   "zones": {
     "zone1": {
-      "nom": "Laitue",
+      "nom": "Tomate",
       "vitale": true,
       "priorite": 1,
       "seuil_arrosage": 60,

@@ -9,15 +9,23 @@
 .PARAMETER DureeCrise
     Durée de la crise en secondes. 480 = 8 minutes réelles = 48 h simulées. Transmise à l'API.
 
+.PARAMETER SansCapteur
+    N'ouvre pas le pont du capteur réel (spacefarm/pont_capteur.py). À utiliser si l'ESP32 n'est
+    pas branché : sinon sa fenêtre affiche juste une erreur de port série, sans gêner le reste.
+
 .EXAMPLE
     .\start.ps1                       # crise de 8 minutes
 
 .EXAMPLE
     .\start.ps1 -DureeCrise 180       # crise de 3 minutes (démo)
+
+.EXAMPLE
+    .\start.ps1 -SansCapteur          # sans le pont du capteur réel (ESP32 non branché)
 #>
 param(
     [ValidateRange(10, 86400)]
-    [int]$DureeCrise = 480
+    [int]$DureeCrise = 480,
+    [switch]$SansCapteur
 )
 
 $racine = $PSScriptRoot
@@ -95,7 +103,7 @@ foreach ($port in 8000, 5173) {
 # ---------------------------------------------------------------------------
 # 2. Broker Mosquitto (conteneur Docker)
 # ---------------------------------------------------------------------------
-Write-Host "[1/4] Broker Mosquitto (Docker)..."
+Write-Host "[1/5] Broker Mosquitto (Docker)..."
 docker info *> $null
 if ($LASTEXITCODE -ne 0) {
     Echec "Docker ne répond pas. Lancez Docker Desktop, attendez qu'il soit prêt, puis recommencez."
@@ -116,7 +124,7 @@ Write-Host "      broker prêt (port 1883)" -ForegroundColor Green
 # ---------------------------------------------------------------------------
 # 3. API, simulateur, dashboard : une fenêtre chacun
 # ---------------------------------------------------------------------------
-Write-Host "[2/4] API FastAPI (port 8000)..."
+Write-Host "[2/5] API FastAPI (port 8000)..."
 Lancer-Fenetre "api" "SpaceFarm - API (port 8000)" (Join-Path $racine "spacefarm") `
     "`$env:DUREE_CRISE_SECONDES = '$DureeCrise'; & '$python' -m uvicorn api:app --host 0.0.0.0 --port 8000"
 if (-not (Attendre-Http "http://127.0.0.1:8000/etat" 30)) {
@@ -124,11 +132,19 @@ if (-not (Attendre-Http "http://127.0.0.1:8000/etat" 30)) {
 }
 Write-Host "      API prête" -ForegroundColor Green
 
-Write-Host "[3/4] Simulateur..."
+Write-Host "[3/5] Simulateur..."
 Lancer-Fenetre "simulateur" "SpaceFarm - Simulateur" (Join-Path $racine "spacefarm") "& '$python' simulateur.py"
 Write-Host "      simulateur lancé" -ForegroundColor Green
 
-Write-Host "[4/4] Dashboard React (port 5173)..."
+Write-Host "[4/5] Pont du capteur réel (zone Laitue)..."
+if ($SansCapteur) {
+    Write-Host "      ignoré (-SansCapteur)" -ForegroundColor Yellow
+} else {
+    Lancer-Fenetre "pont" "SpaceFarm - Capteur réel (COM3)" (Join-Path $racine "spacefarm") "& '$python' pont_capteur.py"
+    Write-Host "      pont lancé (si l'ESP32 n'est pas branché sur COM3, sa fenêtre l'indique ; relancer avec -SansCapteur pour l'ignorer)" -ForegroundColor Green
+}
+
+Write-Host "[5/5] Dashboard React (port 5173)..."
 Lancer-Fenetre "dashboard" "SpaceFarm - Dashboard (port 5173)" (Join-Path $racine "dashboard") "npm.cmd run dev"
 if (-not (Attendre-Http "http://127.0.0.1:5173" 40)) {
     Echec "le dashboard ne répond pas (regardez le message dans sa fenêtre)."
@@ -151,5 +167,10 @@ foreach ($ip in $adresses) {
 }
 Write-Host ("  {0,-22}: http://127.0.0.1:8000/docs" -f "API (documentation)")
 Write-Host ""
+if ($SansCapteur) {
+    Write-Host "Capteur réel : ignoré (-SansCapteur). Zone Laitue en humidité simulée." -ForegroundColor Yellow
+} else {
+    Write-Host "Capteur réel : pont lancé (voir sa fenêtre si l'ESP32 n'est pas branché sur COM3)." -ForegroundColor Cyan
+}
 Write-Host "Un autre PC n'arrive pas à se connecter ? Ouvrez les ports 5173 et 8000 dans le pare-feu (voir README)."
 Write-Host "Pour tout arrêter : .\stop.ps1"
