@@ -84,3 +84,5 @@ Depuis la racine : `spacefarm\.venv\Scripts\python.exe tests\test_crise.py` (3 m
 | 5 | Fin de crise et bilan | retour automatique au mode normal, bilan de consommation |
 
 Avant la démo : « Réinitialiser la ferme » ; à l'étape 4 : « Préparer la démo de crise » (ferme « qui a déjà souffert », pour que 3 minutes suffisent à montrer le rationnement). Captures : [dashboard/captures/](dashboard/captures/).
+
+helloworld
