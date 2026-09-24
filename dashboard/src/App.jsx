@@ -103,6 +103,10 @@ export default function App() {
         </div>
         <div className="entete-etat">
           {erreur && <span className="erreur-api">API injoignable ({API_URL})</span>}
+          {/* CropGuard : service séparé (détection de maladies par photo), pas toujours lancé */}
+          <a className="lien-cropguard" href={`http://${window.location.hostname}:8100`} target="_blank" rel="noopener">
+            CropGuard ↗
+          </a>
           {/* Heure de la dernière réponse de l'API : montre que l'affichage est vivant */}
           <span>
             Données reçues à <Num>{new Date(recuLe).toLocaleTimeString('fr-FR')}</Num>

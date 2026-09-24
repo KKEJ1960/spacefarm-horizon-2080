@@ -44,9 +44,16 @@ Sans ESP32 branché, lancer avec `-SansCapteur` (sinon la fenêtre du pont affic
 
 ## CropGuard : santé des plantes par photo (module d'un membre de l'équipe)
 
-[cropguard/](cropguard/) est un service séparé qui analyse des photos de feuilles (dossier `cropguard/flux/`) avec un modèle entraîné, détecte des symptômes (jaunissement, taches, pourriture), et publie une santé par zone sur MQTT (`cropguard/<zone>/sante`) — l'API SpaceFarm s'y abonne et avance un peu l'arrosage d'une zone dont les feuilles sont en souffrance (voir [TOPICS.md](TOPICS.md)). Il a ses propres dépendances (`cropguard/requirements.txt`) et son propre petit tableau de bord (port 8100).
+[cropguard/](cropguard/) est un service séparé qui analyse des photos de feuilles (dossier `cropguard/flux/`) avec un modèle entraîné, détecte des symptômes (jaunissement, taches, pourriture), et publie une santé par zone sur MQTT (`cropguard/<zone>/sante`) — l'API SpaceFarm s'y abonne et avance un peu l'arrosage d'une zone dont les feuilles sont en souffrance (voir [TOPICS.md](TOPICS.md)). Le dashboard affiche un lien « CropGuard ↗ » en haut à droite vers son propre petit tableau de bord (port 8100).
 
-**Pas encore lancé automatiquement** par `start.ps1` (intégré au dépôt, pas branché à la démo pour l'instant) :
+**Pas lancé automatiquement** par `start.ps1` (à lancer à part, avant ou après). Sur certains PC (politique de sécurité Windows, par exemple gérée par un établissement), scikit-learn peut être bloqué hors conteneur : dans ce cas, utiliser Docker (méthode testée) :
+```powershell
+cd cropguard
+docker build -t spacefarm-cropguard .
+docker run -d --name cropguard -p 8100:8100 spacefarm-cropguard
+docker rm -f cropguard   # pour l'arrêter
+```
+Sinon, en Python directement (plus simple si ça fonctionne sur le PC) :
 ```powershell
 cd cropguard
 python -m venv .venv; .\.venv\Scripts\python.exe -m pip install -r requirements.txt

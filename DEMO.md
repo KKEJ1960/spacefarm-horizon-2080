@@ -111,7 +111,7 @@ Le port série (`COM3`) ne peut être ouvert que par **un seul programme à la f
 - **Tout est simulé ?** Presque : l'humidité du sol et la température de la tomate viennent d'un vrai capteur sur un ESP32 (voir « Étape optionnelle » plus haut) ; le reste (pompes, évaporation, fuite, recyclage, autres zones) est simulé. Les échanges passent bien par un vrai broker MQTT, comme sur du matériel.
 - **Le circuit fermé est-il simulé ?** Oui, de façon simple : à chaque tour, 90 % de l'eau pompée revient dans le réservoir, toujours, sans traitement ni délai. L'eau d'une fuite est perdue, et en crise le recyclage est coupé.
 - **Pourquoi MQTT ?** Léger, standard de l'IoT, et il sépare proprement capteurs, décisions et affichage.
-- **C'est quoi CropGuard ?** Un module ajouté par un membre de l'équipe : il analyse des photos de feuilles et détecte celles qui semblent malades, pour avancer un peu leur arrosage. Le code est dans le dépôt ([cropguard/](cropguard/)), mais il n'est pas branché à cette démonstration.
+- **C'est quoi CropGuard ?** Un module ajouté par un membre de l'équipe : il analyse des photos de feuilles et détecte celles qui semblent malades, pour avancer un peu leur arrosage. Le code fonctionne (lancé à part, voir [cropguard/](cropguard/)) et son lien apparaît en haut à droite du dashboard quand il tourne, mais il ne fait pas partie du déroulé principal de cette démonstration.
 
 ## En cas de problème
 

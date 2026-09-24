@@ -149,6 +149,21 @@ p {
   font-size: 18px;
 }
 
+/* Lien vers CropGuard (service séparé, port 8100) : discret, pas un bouton */
+.lien-cropguard {
+  color: var(--texte-doux);
+  text-decoration: none;
+  font-size: 16px;
+  border: 1px solid var(--bord);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.lien-cropguard:hover {
+  color: var(--texte);
+  border-color: var(--accent);
+}
+
 .erreur-api {
   padding: 4px 12px;
   border-radius: 6px;

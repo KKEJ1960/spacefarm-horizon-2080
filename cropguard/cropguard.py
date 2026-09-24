@@ -7,8 +7,10 @@
 # La sante calculee est aussi publiee sur cropguard/<zone>/sante ; l'API SpaceFarm (api.py) s'y
 # abonne pour arroser un peu plus tot une zone dont les feuilles sont en souffrance.
 #
-# Ce service n'est PAS lance automatiquement par start.ps1 pour l'instant : le lancer a la main
-# (depuis ce dossier, avec ses propres dependances, voir requirements.txt) :
+# Ce service n'est PAS lance automatiquement par start.ps1 : le lancer a la main. Si scikit-learn
+# est bloque hors conteneur (politique de securite Windows), voir Dockerfile (methode testee) :
+#   docker build -t spacefarm-cropguard . ; docker run -d --name cropguard -p 8100:8100 spacefarm-cropguard
+# Sinon, directement en Python (depuis ce dossier, ses propres dependances, voir requirements.txt) :
 #   pip install -r requirements.txt
 #   python -m uvicorn cropguard:app --host 0.0.0.0 --port 8100
 # Puis ouvrir http://127.0.0.1:8100
@@ -338,7 +340,7 @@ async function rafraichir(){
     ).join('') : '<li class="vide">Aucune alerte.</li>';
   }catch(err){}
 }
-document.getElementById('lien-sf').href = 'http://' + location.hostname;
+document.getElementById('lien-sf').href = 'http://' + location.hostname + ':5173';   // port du dashboard SpaceFarm
 rafraichir();
 setInterval(rafraichir, 2000);
 </script>
