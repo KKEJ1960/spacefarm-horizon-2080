@@ -82,6 +82,33 @@ automatiquement par `start.ps1` dans sa propre fenêtre (sauf avec `-SansCapteur
 `.\pont-start.ps1` / arrêté seul avec `.\pont-stop.ps1` (utile pour libérer le port série et
 téléverser un nouveau programme depuis l'IDE Arduino, voir DEMO.md).
 
+## CropGuard : santé des plantes par photo (cropguard/, module ajouté par un membre de l'équipe)
+
+Service séparé, indépendant de l'API : il analyse des photos de feuilles (dossier `cropguard/flux/`)
+avec un modèle entraîné (`cropguard/modele.joblib`), et publie une santé (0-100 %) par zone :
+
+| Topic | Valeur | Unité | Exemple |
+|---|---|---|---|
+| `cropguard/<zone>/sante` | nombre (0-100), santé des feuilles | `%` | `{"valeur": 82.0, "unite": "%", "date": "..."}` |
+| `cropguard/alertes` | une alerte par message (format différent de `spacefarm/alertes`, propre à CropGuard) | — | — |
+
+L'API SpaceFarm s'abonne à `cropguard/#` : dès qu'une santé arrive, elle est mémorisée
+(`sante_plante` dans `GET /etat`) et une plante en souffrance (santé sous 60 %, critique sous 40 %)
+avance un peu son arrosage (voir `SEUIL_SANTE_ATTENTION`, `SEUIL_SANTE_CRITIQUE`,
+`BONUS_ARROSAGE_MALADIE` dans `api.py`). CropGuard n'écoute rien de SpaceFarm : c'est à sens unique.
+
+CropGuard n'est **pas lancé automatiquement** par `start.ps1` (à faire à la main, avec ses propres
+dépendances, séparées de celles de `spacefarm/`) :
+```powershell
+cd cropguard
+python -m venv .venv; .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn cropguard:app --host 0.0.0.0 --port 8100
+```
+Puis ouvrir `http://127.0.0.1:8100` (son propre tableau de bord). Réglages : `INTERVALLE` (délai entre
+deux photos, 4 s par défaut), `SEUIL_MALADE` (0.60), `SEUIL_SURVEILLANCE` (0.35), `IRRIGATION_AUTO`
+(si `1`, CropGuard peut lui-même commander `spacefarm/<zone>/cmd/pompe` = `ON` sur une zone malade ;
+`0` par défaut, désactivé).
+
 ## Commandes (écoutées par le simulateur)
 
 Le message est du **texte simple** : `ON` ou `OFF` (pas de JSON).
@@ -127,7 +154,7 @@ Lancer : `python -m uvicorn api:app --port 8000` depuis `spacefarm/`. En PowerSh
 
 | Route | Rôle |
 |---|---|
-| `GET /etat` | dernier état de chaque zone et du réservoir, avec `consommation_litres`, `source_humidite`, `humidite_brute` et `source_temperature` par zone, `consommation_totale_litres`, `fuite_simulee`, `recyclage_actif`, `demo_crise_prete` et `demo_crise_secondes_restantes` |
+| `GET /etat` | dernier état de chaque zone et du réservoir, avec `consommation_litres`, `source_humidite`, `humidite_brute`, `source_temperature` et `sante_plante` (venue de CropGuard, `null` si inconnue) par zone, `consommation_totale_litres`, `fuite_simulee`, `recyclage_actif`, `demo_crise_prete` et `demo_crise_secondes_restantes` |
 | `GET /alertes` | liste des alertes (200 dernières, de la plus ancienne à la plus récente) |
 | `POST /simulation/fuite?etat=ON` ou `OFF` | déclenche ou arrête la fuite simulée (publie sur `spacefarm/simulation/fuite`) |
 | `GET /crise` | `actif`, `temps_restant_secondes`, `budget_total_litres`, `budget_consomme_litres`, `budget_restant_litres`, `zones_en_danger` (humidité sous `seuil_survie`), et `bilan` une fois la crise finie |

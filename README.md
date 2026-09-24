@@ -1,6 +1,6 @@
 # SpaceFarm — Horizon 2080 · Pilier 2 : FoodTech & AgriTech Spatiale
 
-Ferme hydroponique autonome embarquée dans un vaisseau spatial, **entièrement simulée** (aucun matériel). Le circuit fermé est simulé simplement : à chaque tour, 90 % de l'eau pompée revient dans le réservoir (la fuite, elle, est perdue). Trois cultures se partagent un réservoir de 200 L : tomate et pomme de terre (vitales), basilic (non vitale).
+Ferme hydroponique autonome embarquée dans un vaisseau spatial, **surtout simulée** (deux vrais capteurs sur la zone 1, voir plus bas ; le reste est simulé). Le circuit fermé est simulé simplement : à chaque tour, 90 % de l'eau pompée revient dans le réservoir (la fuite, elle, est perdue). Trois cultures se partagent un réservoir de 200 L : tomate et pomme de terre (vitales), basilic (non vitale).
 Scénario de crise : le recyclage de l'eau est contaminé donc coupé, il faut tenir **48 h** (simulées, soit 8 min réelles) avec **40 %** de l'eau normalement consommée.
 
 ## Architecture
@@ -42,6 +42,17 @@ La zone 1 (Tomate) peut recevoir deux mesures de **vrais capteurs** branchés su
 
 Sans ESP32 branché, lancer avec `-SansCapteur` (sinon la fenêtre du pont affiche juste une erreur de port série, sans gêner le reste). Pour libérer le port série sans arrêter le reste de la ferme (par exemple pour téléverser un nouveau programme depuis l'IDE Arduino) : `.\pont-stop.ps1`, puis `.\pont-start.ps1` pour le relancer (détails dans [DEMO.md](DEMO.md)). Détails des topics et du format : [TOPICS.md](TOPICS.md).
 
+## CropGuard : santé des plantes par photo (module d'un membre de l'équipe)
+
+[cropguard/](cropguard/) est un service séparé qui analyse des photos de feuilles (dossier `cropguard/flux/`) avec un modèle entraîné, détecte des symptômes (jaunissement, taches, pourriture), et publie une santé par zone sur MQTT (`cropguard/<zone>/sante`) — l'API SpaceFarm s'y abonne et avance un peu l'arrosage d'une zone dont les feuilles sont en souffrance (voir [TOPICS.md](TOPICS.md)). Il a ses propres dépendances (`cropguard/requirements.txt`) et son propre petit tableau de bord (port 8100).
+
+**Pas encore lancé automatiquement** par `start.ps1` (intégré au dépôt, pas branché à la démo pour l'instant) :
+```powershell
+cd cropguard
+python -m venv .venv; .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn cropguard:app --host 0.0.0.0 --port 8100
+```
+
 - **Script bloqué** (« l'exécution de scripts est désactivée ») : `powershell -ExecutionPolicy Bypass -File .\start.ps1 -DureeCrise 180`, ou une fois pour toutes `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 - **Autres PC** : ouvrir les ports dans le pare-feu, en PowerShell administrateur : `New-NetFirewallRule -DisplayName "SpaceFarm 5173 et 8000" -Direction Inbound -Protocol TCP -LocalPort 5173,8000 -Action Allow -Profile Any -RemoteAddress LocalSubnet`
 
@@ -70,8 +81,9 @@ Sans ESP32 branché, lancer avec `-SansCapteur` (sinon la fenêtre du pont affic
 | Réservoir bas (25 %) | basilic jamais arrosé, tomate et pomme de terre arrosées ; « une pompe vitale à la fois » vérifié par scénarios contrôlés seulement |
 | Dashboard (navigateur automatisé) | 1920x1080 sans défilement, 1366x768 sans chevauchement |
 | Capteurs réels, humidité et température (pont simulé sur MQTT, sans ESP32) | 18/18 : bascule indépendante des deux capteurs, arrosage piloté par l'humidité réelle (normal et en crise), retour au simulé après 15 s sans message (indépendant par capteur), réinitialisation, crise et fuite inchangées |
+| Réactions anticipées : chaleur et CropGuard (module d'un membre de l'équipe, MQTT simulé) | 8/8 : alerte et arrosage avancé si température ≥ 28 °C ou santé des feuilles basse, retour à la normale, messages malformés ignorés, réinitialisation |
 
-Depuis la racine : `spacefarm\.venv\Scripts\python.exe tests\test_crise.py` (3 min ; `--duree 480 --humidite-depart 70 --attente 60` pour 8 min ; `--demo` pour la démo de crise), `... tests\test_fuite_recyclage.py` (5 s), `... tests\test_reinit.py` (2 min), `... tests\test_capteur_reel.py` (1 min, sans ESP32 : simule le pont directement sur MQTT).
+Depuis la racine : `spacefarm\.venv\Scripts\python.exe tests\test_crise.py` (3 min ; `--duree 480 --humidite-depart 70 --attente 60` pour 8 min ; `--demo` pour la démo de crise), `... tests\test_fuite_recyclage.py` (5 s), `... tests\test_reinit.py` (2 min), `... tests\test_capteur_reel.py` (1 min, sans ESP32 : simule le pont directement sur MQTT), `... tests\test_reactions_anticipees.py` (30 s, sans CropGuard réel : simule ses messages directement sur MQTT).
 
 ## Démo en 5 étapes (détail et phrases dans [DEMO.md](DEMO.md))
 

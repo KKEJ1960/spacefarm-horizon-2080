@@ -1,0 +1,16 @@
+[Unit]
+Description=CropGuard
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+User=test
+WorkingDirectory=/opt/cropguard
+Environment=INTERVALLE=4
+Environment=IRRIGATION_AUTO=0
+ExecStart=/opt/cropguard/.venv/bin/python -m uvicorn cropguard:app --host 0.0.0.0 --port 8100
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

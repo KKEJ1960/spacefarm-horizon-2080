@@ -108,9 +108,10 @@ Le port série (`COM3`) ne peut être ouvert que par **un seul programme à la f
 - **Pourquoi 40 % de la consommation normale et pas du réservoir ?** Le réservoir est plein (200 L) : 40 % de son contenu ne serait pas une contrainte. La contrainte réelle est ce que la ferme consomme (60 L pour 8 min), donc 24 L.
 - **Et si le budget est épuisé ?** Avant chaque tour de pompe, l'API vérifie qu'il reste assez d'eau, sinon elle refuse la pompe et crée une alerte critique. Le budget n'est jamais dépassé (vérifié par trois mesures indépendantes).
 - **48 h en 8 minutes ?** Facteur 360 (172 800 s ÷ 480 s). La durée se règle avec `-DureeCrise`, et le budget est recalculé pour la durée choisie.
-- **Tout est simulé ?** Oui : capteurs, pompes, évaporation, fuite, recyclage. Les échanges passent bien par un vrai broker MQTT, comme sur du matériel.
+- **Tout est simulé ?** Presque : l'humidité du sol et la température de la tomate viennent d'un vrai capteur sur un ESP32 (voir « Étape optionnelle » plus haut) ; le reste (pompes, évaporation, fuite, recyclage, autres zones) est simulé. Les échanges passent bien par un vrai broker MQTT, comme sur du matériel.
 - **Le circuit fermé est-il simulé ?** Oui, de façon simple : à chaque tour, 90 % de l'eau pompée revient dans le réservoir, toujours, sans traitement ni délai. L'eau d'une fuite est perdue, et en crise le recyclage est coupé.
 - **Pourquoi MQTT ?** Léger, standard de l'IoT, et il sépare proprement capteurs, décisions et affichage.
+- **C'est quoi CropGuard ?** Un module ajouté par un membre de l'équipe : il analyse des photos de feuilles et détecte celles qui semblent malades, pour avancer un peu leur arrosage. Le code est dans le dépôt ([cropguard/](cropguard/)), mais il n'est pas branché à cette démonstration.
 
 ## En cas de problème
 

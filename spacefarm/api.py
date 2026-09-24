@@ -19,6 +19,9 @@ Ce service est séparé du simulateur. Il fait cinq choses :
      limité, zones non vitales sacrifiées, zones vitales maintenues juste au-dessus du seuil de
      survie, éclairage réduit. La crise se termine toute seule au bout de DUREE_CRISE_SECONDES
      (le recyclage est alors rétabli) ;
+  4bis. RÉACTIONS ANTICIPÉES (module ajouté par un membre de l'équipe) : arrosage un peu avancé
+     quand il fait chaud (température ≥ SEUIL_TEMP_CHALEUR), et quand CropGuard (service séparé,
+     voir cropguard/) signale une plante en souffrance sur "cropguard/<zone>/sante" ;
   5. il expose tout ça par HTTP pour le dashboard React.
 
 Routes : GET /etat, GET /alertes, POST /simulation/fuite?etat=ON|OFF,
@@ -63,6 +66,15 @@ MAX_ALERTES = 200               # on garde les 200 dernières alertes en mémoir
 # --- Capteurs réels (pont_capteur.py) ---
 ZONE_CAPTEUR_REEL = os.getenv("ZONE_CAPTEUR_REEL", "zone1")   # zone dont l'humidité et la température peuvent venir de vrais capteurs
 DELAI_CAPTEUR_REEL = 15         # secondes sans message d'un capteur réel avant de repasser sa mesure en simulée
+
+# --- Réaction à la température (chaleur) : ajouté par un membre de l'équipe ---
+SEUIL_TEMP_CHALEUR = float(os.getenv("SEUIL_TEMP_CHALEUR", "28"))   # au-delà : alerte + arrosage anticipé
+BONUS_ARROSAGE_CHALEUR = 8      # quand il fait chaud, on arrose sous seuil_arrosage + ce bonus
+
+# --- Liaison CropGuard -> SpaceFarm (santé des plantes, voir cropguard/) ---
+SEUIL_SANTE_ATTENTION = float(os.getenv("SEUIL_SANTE_ATTENTION", "60"))  # santé sous ce % : plante fragilisée
+SEUIL_SANTE_CRITIQUE = float(os.getenv("SEUIL_SANTE_CRITIQUE", "40"))    # santé sous ce % : plante malade
+BONUS_ARROSAGE_MALADIE = 5      # plante en souffrance : arrosage un peu anticipé
 
 # --- Règles en mode crise ---
 # 48 h simulées = 8 minutes réelles (480 s). Modifiable : DUREE_CRISE_SECONDES=180 par exemple.
@@ -120,6 +132,8 @@ for zone_id, params in CONFIG["zones"].items():
         "source_humidite": "simulee",
         "humidite_brute": None,   # valeur brute du capteur d'humidité (utile pour le débogage), None si simulée
         "source_temperature": "simulee",
+        # santé des feuilles (%) publiée par CropGuard (module séparé, voir cropguard/), None si inconnue
+        "sante_plante": None,
     }
 
 # Liste des alertes, de la plus ancienne à la plus récente.
@@ -281,6 +295,41 @@ def evaluer_reservoir(ancien_niveau, niveau):
         "fuite", statut, "reservoir",
         f"Fuite suspectée : le réservoir a perdu {baisse:.1f} L en un tour, les pompes n'expliquent que {attendu:.1f} L",
         "Retour à la normale : la baisse du réservoir correspond de nouveau aux pompes, plus de fuite",
+    )
+
+
+def evaluer_chaleur(zone_id):
+    """Alerte "attention" si la température de la zone dépasse le seuil de chaleur (module ajouté
+    par un membre de l'équipe : sert aussi à avancer l'arrosage, voir seuil_demarrage)."""
+    zone = etat["zones"][zone_id]
+    t = zone["temperature"]
+    if t is None:
+        return
+    statut = "attention" if t >= SEUIL_TEMP_CHALEUR else "normal"
+    mettre_a_jour_statut(
+        f"chaleur:{zone_id}", statut, zone_id,
+        f"{zone['nom']} : température élevée {t} degrés (seuil {SEUIL_TEMP_CHALEUR:.0f}) - arrosage anticipé",
+        f"Retour à la normale : {zone['nom']}, température redescendue à {t} degrés",
+    )
+
+
+def evaluer_maladie(zone_id):
+    """Alerte quand CropGuard (module séparé, voir cropguard/) signale une plante en souffrance
+    (santé basse) sur cette zone. Sert aussi à avancer l'arrosage, voir seuil_demarrage."""
+    zone = etat["zones"][zone_id]
+    sante = zone.get("sante_plante")
+    if sante is None:
+        return
+    if sante < SEUIL_SANTE_CRITIQUE:
+        statut = "critique"
+    elif sante < SEUIL_SANTE_ATTENTION:
+        statut = "attention"
+    else:
+        statut = "normal"
+    mettre_a_jour_statut(
+        f"maladie:{zone_id}", statut, zone_id,
+        f"CropGuard : {zone['nom']} en souffrance (santé des feuilles {sante} %) - arrosage anticipé",
+        f"Retour à la normale : {zone['nom']}, santé des feuilles remontée à {sante} %",
     )
 
 
@@ -485,7 +534,15 @@ def seuil_demarrage(zone):
     """Humidité sous laquelle on allume la pompe de la zone."""
     if crise["actif"]:
         return zone["seuil_survie"] + CRISE_MARGE_DEMARRAGE    # crise : juste au-dessus de la survie
-    return zone["seuil_arrosage"]
+    seuil = zone["seuil_arrosage"]
+    # Il fait chaud : on arrose plus tôt (les plantes perdent l'eau plus vite)
+    if zone.get("temperature") is not None and zone["temperature"] >= SEUIL_TEMP_CHALEUR:
+        seuil += BONUS_ARROSAGE_CHALEUR
+    # Plante en souffrance signalée par CropGuard : on arrose un peu plus tôt
+    if zone.get("sante_plante") is not None and zone["sante_plante"] < SEUIL_SANTE_ATTENTION:
+        seuil += BONUS_ARROSAGE_MALADIE
+    # Plafond : on reste sous le seuil d'arrêt pour garder l'hystérésis (pas d'allumage/extinction en boucle)
+    return min(seuil, zone["seuil_arrosage"] + MARGE_ARRET_POMPE - 2)
 
 
 def seuil_arret(zone):
@@ -603,12 +660,16 @@ def traiter_mesure_humidite_reelle(zone_id, payload):
         return   # message mal formé : on l'ignore plutôt que de planter
 
     zone = etat["zones"][zone_id]
-    if zone["source_humidite"] != "capteur-reel":
-        zone["source_humidite"] = "capteur-reel"
-        creer_alerte("info", zone_id, f"Capteur d'humidité réel connecté : {zone['nom']} suit désormais la mesure réelle (plus la simulation).")
+    nouvelle_connexion = zone["source_humidite"] != "capteur-reel"
+    # On écrit la valeur AVANT de basculer le drapeau "source" : l'API tourne sur deux fils
+    # d'exécution (MQTT et HTTP), et un lecteur qui verrait le drapeau changé avant la valeur
+    # (GET /etat au mauvais moment) recevrait une valeur encore périmée.
     zone["humidite"] = valeur
     zone["humidite_brute"] = message.get("brut")
     capteur_reel["derniere_reception_humidite"] = time.time()
+    zone["source_humidite"] = "capteur-reel"
+    if nouvelle_connexion:
+        creer_alerte("info", zone_id, f"Capteur d'humidité réel connecté : {zone['nom']} suit désormais la mesure réelle (plus la simulation).")
 
     # En crise, on retient l'humidité la plus basse de la zone (pour le bilan), comme pour la simulation
     if crise["actif"]:
@@ -624,8 +685,8 @@ def traiter_mesure_humidite_reelle(zone_id, payload):
 def traiter_mesure_temperature_reelle(zone_id, payload):
     """
     Message reçu sur spacefarm/<zone>/temperature_reelle : remplace la température SIMULÉE de la
-    zone. La température n'influence aujourd'hui aucune règle (ni arrosage, ni crise) : elle est
-    seulement affichée, mise à jour, avec une alerte au premier message.
+    zone. Sert à l'affichage, et (voir evaluer_chaleur / seuil_demarrage) à avancer un peu
+    l'arrosage si la zone a trop chaud ; n'influence pas les autres règles (crise, priorité).
     """
     if zone_id != ZONE_CAPTEUR_REEL or zone_id not in etat["zones"]:
         return
@@ -636,11 +697,14 @@ def traiter_mesure_temperature_reelle(zone_id, payload):
         return
 
     zone = etat["zones"][zone_id]
-    if zone["source_temperature"] != "capteur-reel":
-        zone["source_temperature"] = "capteur-reel"
-        creer_alerte("info", zone_id, f"Capteur de température réel connecté : {zone['nom']} suit désormais la mesure réelle (plus la simulation).")
+    nouvelle_connexion = zone["source_temperature"] != "capteur-reel"
+    # Même ordre que pour l'humidité : la valeur avant le drapeau (voir traiter_mesure_humidite_reelle)
     zone["temperature"] = valeur
     capteur_reel["derniere_reception_temperature"] = time.time()
+    zone["source_temperature"] = "capteur-reel"
+    if nouvelle_connexion:
+        creer_alerte("info", zone_id, f"Capteur de température réel connecté : {zone['nom']} suit désormais la mesure réelle (plus la simulation).")
+    evaluer_chaleur(zone_id)   # avec une vraie mesure aussi, pas seulement en simulation
 
 
 def verifier_capteur_reel():
@@ -675,6 +739,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
     """Appelée à la connexion (et à chaque reconnexion) : on s'abonne à tout."""
     journal(f"Connecté au broker {BROKER_HOST}:{BROKER_PORT}")
     client.subscribe("spacefarm/#")
+    client.subscribe("cropguard/#")   # santé des plantes publiée par CropGuard (module séparé)
     # On (re)publie le mode et le recyclage : efface un éventuel "crise" / "OFF" resté dans le broker
     # d'une exécution précédente
     publier_mode("crise" if crise["actif"] else "normal")
@@ -700,6 +765,20 @@ def on_message(client, userdata, msg):
                 suivi["ignorer_fuite_jusqua"] = time.time() + 2 * INTERVALLE
             etat["recyclage_actif"] = actif
         return
+
+    # Santé des plantes publiée par CropGuard (module séparé, voir cropguard/) : cropguard/<zone>/sante
+    if msg.topic.startswith("cropguard/") and msg.topic.endswith("/sante"):
+        zone_id = msg.topic.split("/")[1]
+        try:
+            valeur = json.loads(msg.payload)["valeur"]
+        except (ValueError, KeyError, TypeError):
+            return
+        if zone_id in etat["zones"]:
+            etat["zones"][zone_id]["sante_plante"] = valeur
+            evaluer_maladie(zone_id)
+        return
+    if msg.topic.startswith("cropguard/"):
+        return   # autres topics CropGuard (alertes...) : on ne s'en sert pas ici
 
     morceaux = msg.topic.split("/")   # ex. ["spacefarm", "zone1", "humidite"]
     if len(morceaux) != 3:
@@ -747,6 +826,10 @@ def on_message(client, userdata, msg):
                 compter_consommation(cible)
             evaluer_survie(cible)
             appliquer_regle_arrosage(cible)
+
+        # Réaction à la température : chaleur -> alerte + arrosage anticipé (voir seuil_demarrage)
+        if mesure == "temperature":
+            evaluer_chaleur(cible)
 
 
 # ---------------------------------------------------------------------------
@@ -827,6 +910,7 @@ def reinitialiser_ferme(demo=False):
         zone["source_humidite"] = "simulee"
         zone["humidite_brute"] = None
         zone["source_temperature"] = "simulee"
+        zone["sante_plante"] = None
     capteur_reel["derniere_reception_humidite"] = 0.0
     capteur_reel["derniere_reception_temperature"] = 0.0
     alertes.clear()

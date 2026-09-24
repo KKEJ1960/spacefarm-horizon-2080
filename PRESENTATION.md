@@ -85,7 +85,7 @@ Dans l'espace : moins de ravitaillement, une ferme qui réagit seule, une eau g�
 - **Le logiciel n'utilise pas tout.** Température et acidité sont affichées mais ne déclenchent aucune décision ; la lumière suit un horaire fixe.
 - **Testé sur un seul ordinateur, sans mot de passe** : un système d'atelier, pas un produit sécurisé.
 
-**Prochaines étapes possibles :** d'autres vrais capteurs et de vraies pompes (deux capteurs réels existent déjà pour la tomate ; le cerveau et l'écran ont à peine changé pour les accueillir) ; des limites ajustées par des agronomes ; la croissance des plantes simulée ; la température et l'acidité utilisées pour décider ; un accès protégé.
+**Prochaines étapes possibles :** d'autres vrais capteurs et de vraies pompes (deux capteurs réels existent déjà pour la tomate ; le cerveau et l'écran ont à peine changé pour les accueillir) ; des limites ajustées par des agronomes ; la croissance des plantes simulée ; la température et l'acidité utilisées pour décider ; un accès protégé. Un membre de l'équipe a aussi commencé CropGuard, une détection de maladies des feuilles par photo (voir [cropguard/](cropguard/)) : le code est prêt, il n'est pas encore branché à la démonstration.
 
 ## 10. Le pitch de 30 secondes
 
